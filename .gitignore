@@ -1,0 +1,12 @@
+### ROS2 ###
+ros2_ws/build/
+ros2_ws/install/
+ros2_ws/log/
+
+### VisualStudioCode ###
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+!.vscode/*.code-snippets
