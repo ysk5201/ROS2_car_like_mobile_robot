@@ -1,18 +1,15 @@
-version: "3.8"
-
 services:
   ros2_simulation:
     build:
       context: .
       dockerfile: Dockerfile
-    image: ros2-simulation:latest
-    container_name: ros2_simulation
+    image: ros2-test:latest               # docker-compose buildによって生成されるイメージ名
+    container_name: ros2_test             # docker-compose upで生成されるコンテナ名
     volumes:
-      - ./ros2_ws:/ros2_ws         # ローカルのros2_wsをコンテナ内にマウント
+      - ./ros2_ws/src:/root/ros2_ws/src   # ローカルのros2_wsをコンテナ内にマウント
       - /tmp/.X11-unix:/tmp/.X11-unix:rw  # Xサーバを共有
     environment:
-      DISPLAY: $DISPLAY           # ホストのDISPLAYをコンテナに渡す
-      LIBGL_ALWAYS_INDIRECT: 1    # OpenGLの間接レンダリングを有効化
-      QT_X11_NO_MITSHM: 1         # Xサーバ共有制限の無効化
+      DISPLAY: host.docker.internal:0.0   # ホストのDISPLAYをコンテナに渡す
+      QT_X11_NO_MITSHM: 1                 # Xサーバ共有制限の無効化
     stdin_open: true
     tty: true
