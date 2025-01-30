@@ -45,7 +45,7 @@ def generate_launch_description():
         launch_arguments=[
             ('gz_args', [LaunchConfiguration('world'),
                             '.sdf',    #worldの拡張子
-                            ' -v 4',   #ログを表示する
+                            # ' -v 4',   #ログを表示する
                             ' -r']     #起動時にシミュレーションを開始する
             )
         ]
@@ -99,6 +99,11 @@ def generate_launch_description():
              'front_steering_position_controller'],
         output='screen'
     )
+    load_front_wheel_effort_controller = ExecuteProcess(
+        cmd=['ros2', 'control', 'load_controller', '--set-state', 'active',
+             'front_wheel_effort_controller'],
+        output='screen'
+    )
     load_rear_wheel_speed_controller = ExecuteProcess(
         cmd=['ros2', 'control', 'load_controller', '--set-state', 'active',
              'rear_wheel_speed_controller'],
@@ -129,7 +134,8 @@ def generate_launch_description():
             event_handler=OnProcessExit(
                target_action=load_joint_state_controller,
                on_exit=[load_front_steering_position_controller,
-                        load_rear_wheel_speed_controller],
+                        load_rear_wheel_speed_controller,
+                        load_front_wheel_effort_controller],
             )   
         ),
         sim_arg,

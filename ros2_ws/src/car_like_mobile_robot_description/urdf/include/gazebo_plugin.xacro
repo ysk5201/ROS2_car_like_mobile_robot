@@ -8,6 +8,14 @@
     </plugin>
   </gazebo>
 
+  <plugin filename="libgazebo_ros_pose.so" name="gazebo_ros_pose">
+    <ros>
+      <namespace>/car_like_mobile_robot</namespace>
+      <remapping>pose:=odom</remapping>
+    </ros>
+    <update_rate>50</update_rate>
+  </plugin>
+
   <!-- IMU PLUGIN  -->
   <!-- <gazebo reference="imu_link">
     <gravity>true</gravity>
