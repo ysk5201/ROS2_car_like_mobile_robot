@@ -4,12 +4,12 @@
 #define CAR_LIKE_MOBILE_ROBOT_HPP_
 
 #include <array>
+#include <cmath>
+#include <limits>
 #include <vector>
 #include <rclcpp/rclcpp.hpp>
-// #include <sensor_msgs/msg/joint_state.hpp>
 #include <std_msgs/msg/float64.hpp>
 #include <std_msgs/msg/float64_multi_array.hpp>
-// #include "cooperative_transportation_system_pkg/cooperative_transportation_system_constants.hpp"
 
 
 class CarLikeMobileRobot : public rclcpp::Node {
@@ -19,7 +19,7 @@ public:
     ~CarLikeMobileRobot();
 
     // Member functions
-    void calcDesiredPathParam();
+    void calcDesiredPathParams();
     void getCurrentStateVariables();
     std::array<double, 2> calcControlInput();
     void calcCommand(double dt, const std::array<double, 2>& u); // 関数名要検討
@@ -49,10 +49,27 @@ private:
 
     // Member Variables
     // rclcpp::Subscriber true_state_variables_sub_;
+    
+    struct BezierParameters {
+        double q;            // ベジェ曲線パラメータ
+        double s;            // 経路長
+        double Rx, Ry;       // ベジェ曲線上の座標(x, y)
+        double dRxdq, dRydq; // (x, y)の一階微分
+        double c;            // 曲率
+        double dcds;         // 曲率の一階微分
+        double d2cds2;       // 曲率の二階微分
+    };
+    
+    std::vector<BezierParameters> bezier_data_; // ベジェ曲線の計算結果を保持するメンバ変数
+    
+    std::vector<std::vector<long long>> Com_; // nCk(Com_[n][k])の値を格納(Com_[N + 1][N + 1])
+
     double pre_time_;
     double x_, y_, th_, phi_;
     double s_, d_, thetat_;
     double v_;
+
+    double q_search_index_; // 前回の探索で見つけた最適な q のインデックス
 
     double fl_steering_angle_, fr_steering_angle_;
     double rl_linear_velocity_, rr_linear_velocity_;
@@ -63,25 +80,20 @@ private:
     rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr front_right_steering_pub_;
     rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr rear_left_pub_;
     rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr rear_right_pub_;
-
-    // double s_array_[Q_DIV_NUM + 1]; // qに対応する経路長
-    // std::vector<std::vector<long long>> Com_; // nCk(Com_[n][k])の値を格納(Com_[N + 1][N + 1])
     
-    // bool is_full_search_; // Ps探索(全探索, 部分探索)
+    bool is_full_search_; // Ps探索(全探索, 部分探索)
     
     // Member functions
     void initializeSubscribers();
-    
-    // // ベジェ曲線R(q)の微分に使用
-    // void calc_com();
-    // long long nCk(int n, int k);
+    void calc_com(); // 二項係数の計算を実行 & 配列に格納
 
-	// void calc_S(); // ベジェ曲線の経路長を計算
-    // void s_initial(double *q_max, double *dq, double s_x0[S_DIM + 1]);
-    // double s_f0(double s_x[S_DIM + 1]);
-    // double s_f1(double s_x[S_DIM + 1]);
-    // typedef double (CarLikeMobileRobot::*s_FUNC)(double*);
-    // s_FUNC s_f[S_DIM+1] = {&CarLikeMobileRobot::s_f0, &CarLikeMobileRobot::s_f1};
+    void calcBezierParameters(); // ベジェ曲線パラメータを計算する関数
+    void calcArcLength(std::vector<double>& s_values); // ベジェ曲線の経路長を計算する関数
+    double calcArcLengthDerivative(double q); // ベジェ曲線の経路長の微分方程式
+    long long nCk(int n, int k); // 二項係数の計算結果を取得する関数
+    void calcRqDiff(double q, double Rq[][2]);
+    void calcRsDiff(double q, double Rq[][2], double Rs[][2]);
+    void calcCurvature(double Rs[][2], double curv[3]);
 
     // void truePositionCallback(const nav_msgs::Odometry::ConstPtr& msg);
     // void setCurrentPosition(double pos_x0, double pos_y0, double pos_th0);
@@ -93,9 +105,6 @@ private:
     // std::array<double, 2> calc_u(double t, double x, double y, double th, double phi);
     // void calcBezierParam(double x, double y, double& s, double& d, double& thetat, double& c, double& dcds, double& d2cds2);
     // double findPs(double x0, double y0);
-    // void calcRqDiff(double q, double Rq[][2]);
-    // void calcRsDiff(double q, double Rq[][2], double Rs[][2]);
-    // void calcCurvature(double Rs[][2], double curv[3]);
 
     // void Runge(double t);
     // double f0(double x[RUNGE_DIM + 1]);  // t
