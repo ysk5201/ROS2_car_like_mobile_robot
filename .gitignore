@@ -4,7 +4,7 @@ ros2_ws/install/
 ros2_ws/log/
 
 ### VisualStudioCode ###
-.vscode/*
+.vscode/
 !.vscode/settings.json
 !.vscode/tasks.json
 !.vscode/launch.json
