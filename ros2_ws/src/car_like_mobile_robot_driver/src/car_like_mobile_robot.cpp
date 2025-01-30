@@ -1,35 +1,31 @@
-#include <ros/ros.h>
-
 #include "car_like_mobile_robot_driver/car_like_mobile_robot.hpp"
 
-#include "cooperative_transportation_system_pkg/cooperative_transportation_system.hpp"
 
-
-CarlikeMobileRobot::CarlikeMobileRobot(const ros::NodeHandle& nh)
-    : isAtEndPoint(false),
-	nh_(nh),
+CarLikeMobileRobot::CarLikeMobileRobot() : Node("car_like_mobile_robot"),
+    isAtEndPoint(false),
     pre_time_(0.0),
     x_(0.0), y_(0.0), th_(0.0), phi_(0.0),
 	s_(0.0), d_(0.0), thetat_(0.0),
 	v_(0.0)
-	s_array_{},
-    Com_(N + 1, std::vector<long long>(N + 1, 0)),
-    is_full_search_(true) {
-    // initializeSubscribers();
+	// s_array_{},
+    // Com_(N + 1, std::vector<long long>(N + 1, 0)),
+    // is_full_search_(true) 
+    {
+    initializeSubscribers();
     initializePublishers();
     // calc_com();
     // calc_S();
 }
 
-CarlikeMobileRobot::~CarlikeMobileRobot() {
-	std::cout << "CarlikeMobileRobot::~CarlikeMobileRobot() is called!" << std::endl;
+CarLikeMobileRobot::~CarLikeMobileRobot() {
+    RCLCPP_INFO(this->get_logger(), "CarLikeMobileRobot Node Shutting Down.");
 }
 
-void CarlikeMobileRobot::initializeSubscribers() {
-    // true_state_variables_sub_ = nh_.subscribe("/true_state_variables", 1, &CarlikeMobileRobot::truePositionCallback, this);
+void CarLikeMobileRobot::initializeSubscribers() {
+    // true_state_variables_sub_ = nh_.subscribe("/true_state_variables", 1, &CarLikeMobileRobot::truePositionCallback, this);
 }
 
-// void CarlikeMobileRobot::calc_com() {
+// void CarLikeMobileRobot::calc_com() {
 //     const long long MOD = 1000000007;
 //     Com_[0][0] = 1;
 //     for (int i = 1; i < N + 1; ++i) {
@@ -40,7 +36,7 @@ void CarlikeMobileRobot::initializeSubscribers() {
 //     }
 // }
 
-// long long CarlikeMobileRobot::nCk(int n, int k) {
+// long long CarLikeMobileRobot::nCk(int n, int k) {
 //     if (n < k) {
 //         ROS_ERROR("Invalid inputs: n (%d) should be greater than or equal to k (%d)", n, k);
 //         return -1;
@@ -52,7 +48,7 @@ void CarlikeMobileRobot::initializeSubscribers() {
 //     return Com_[n][k];
 // }
 
-// void CarlikeMobileRobot::calc_S() {
+// void CarLikeMobileRobot::calc_S() {
 
 // 	double s_k[S_DIM+1][4], s_q[S_DIM+1][4], s_r[S_DIM+1][4];
 // 	double s_x[3][S_DIM+1];
@@ -109,7 +105,7 @@ void CarlikeMobileRobot::initializeSubscribers() {
 // 	}
 // }
 
-// void CarlikeMobileRobot::s_initial(double *q_max, double *dq, double s_x0[S_DIM + 1]) {
+// void CarLikeMobileRobot::s_initial(double *q_max, double *dq, double s_x0[S_DIM + 1]) {
 
 // 	fflush(stdin);
 	
@@ -126,11 +122,11 @@ void CarlikeMobileRobot::initializeSubscribers() {
 // 	return;
 // }
 
-// double CarlikeMobileRobot::s_f0(double s_x[S_DIM + 1]) {
+// double CarLikeMobileRobot::s_f0(double s_x[S_DIM + 1]) {
 // 	return(1.0);
 // }
 
-// double CarlikeMobileRobot::s_f1(double s_x[S_DIM + 1]) {
+// double CarLikeMobileRobot::s_f1(double s_x[S_DIM + 1]) {
 // 	double q = s_x[0];
 // 	// Rをqで一階微分した時のx, y成分
 // 	double Rq_x = 0.0;
@@ -147,11 +143,11 @@ void CarlikeMobileRobot::initializeSubscribers() {
 // 	return(ret);
 // }
 
-void CarlikeMobileRobot::calcDesiredPathParam() {
+void CarLikeMobileRobot::calcDesiredPathParam() {
     
 }
 
-void CarlikeMobileRobot::getCurrentStateVariables() {
+void CarLikeMobileRobot::getCurrentStateVariables() {
     // コールバック関数
     x_ = 0.0;
     y_ = 0.0;
@@ -159,7 +155,7 @@ void CarlikeMobileRobot::getCurrentStateVariables() {
     phi_ = 0.0;
 }
 
-std::array<double, 2> CarlikeMobileRobot::calcControlInput() {
+std::array<double, 2> CarLikeMobileRobot::calcControlInput() {
 
     double x = x_;
     double y = y_;
@@ -171,17 +167,13 @@ std::array<double, 2> CarlikeMobileRobot::calcControlInput() {
     double u1 = 0.2;
     double u2 = 0.5;
 
-    std::array<double, 2> u;
-    u[0] = u1;
-    u[1] = u2;
-
-    return u;
+    return {u1, u2};
 }
 
-void CarlikeMobileRobot::calcCommand(double dt, const std::array<double, 2>& u) {
+void CarLikeMobileRobot::calcCommand(double dt, const std::array<double, 2>& u) {
 
-    double v = u1;
-    double future_phi = u2 * dt;
+    double v = u[0];
+    double future_phi = u[1] * dt;
     // ワンステップ先のステアリング角度
     fl_steering_angle_ = 0.0;
     fr_steering_angle_ = 0.0;
@@ -190,20 +182,20 @@ void CarlikeMobileRobot::calcCommand(double dt, const std::array<double, 2>& u) 
     rr_linear_velocity_ = 1.0;
 }
 
-void CarlikeMobileRobot::publishCommand() {
+void CarLikeMobileRobot::publishCommand() {
     publishSteeringAngles(fl_steering_angle_, fr_steering_angle_);
     publishWheelSpeeds(rl_linear_velocity_, rr_linear_velocity_);
 }
 
-// double CarlikeMobileRobot::Sec(double a) {
+// double CarLikeMobileRobot::Sec(double a) {
 //     return (1.0 / cos(a));
 // }
 
-// double CarlikeMobileRobot::Arctan(double a, double b) {
+// double CarLikeMobileRobot::Arctan(double a, double b) {
 //     return (atan2(b,a));
 // }
 
-// void CarlikeMobileRobot::Runge(double t) {
+// void CarLikeMobileRobot::Runge(double t) {
 
 //     double k[RUNGE_DIM + 1][4], r[RUNGE_DIM + 1][4];
 //     static double q[RUNGE_DIM + 1][4];
@@ -257,36 +249,36 @@ void CarlikeMobileRobot::publishCommand() {
 //     phi_ = x_new[4];
 // }
 
-// double CarlikeMobileRobot::f0(double x[RUNGE_DIM + 1]) {
+// double CarLikeMobileRobot::f0(double x[RUNGE_DIM + 1]) {
 // 	return(1.0);
 // }
 
-// double CarlikeMobileRobot::f1(double x[RUNGE_DIM + 1]) {
+// double CarLikeMobileRobot::f1(double x[RUNGE_DIM + 1]) {
 // 	double u1 = u_[0];
 // 	double ret = u1 * cos(th_);
 // 	return(ret);
 // }
 
-// double CarlikeMobileRobot::f2(double x[RUNGE_DIM + 1]) {
+// double CarLikeMobileRobot::f2(double x[RUNGE_DIM + 1]) {
 //     double u1 = u_[0];
 // 	double ret = u1 * sin(th_);
 // 	return(ret);
 // }
 
-// double CarlikeMobileRobot::f3(double x[RUNGE_DIM + 1]) {
+// double CarLikeMobileRobot::f3(double x[RUNGE_DIM + 1]) {
 // 	double u1 = u_[0];
 // 	double ret = u1 * tan(th_) / lv;
 // 	return(ret);
 // }
 
-// double CarlikeMobileRobot::f4(double x[RUNGE_DIM + 1]) {
+// double CarLikeMobileRobot::f4(double x[RUNGE_DIM + 1]) {
 //     double u2 = u_[1];
 // 	double ret = u2;
 // 	return(ret);
 // }
 
 // 荷台重心の位置(x0,y0)を受け取ってベジェ曲線のs, d, thetat, c, dcds, d2cds2をそれぞれポインタで返す関数
-// void CarlikeMobileRobot::calcBezierParam(double x0, double y0, double& s, double& d, double& thetat, double& c, double& dcds, double& d2cds2) {
+// void CarLikeMobileRobot::calcBezierParam(double x0, double y0, double& s, double& d, double& thetat, double& c, double& dcds, double& d2cds2) {
 
 // 	// Ps探索後の最適なqを保存
 //     double q = findPs(x0, y0);
@@ -326,7 +318,7 @@ void CarlikeMobileRobot::publishCommand() {
 //     d2cds2  = curv[2];                             // 曲率c(s)の二階微分
 // }
 
-// double CarlikeMobileRobot::findPs(double x0, double y0) {
+// double CarLikeMobileRobot::findPs(double x0, double y0) {
 
 // 	double inf = INFINITY;
 //     double min = inf; // 荷台重心とベジェ曲線との距離の最小値を無限大で初期化
@@ -393,7 +385,7 @@ void CarlikeMobileRobot::publishCommand() {
 // }
 
 // // ベジェ曲線R(q)のqでの(0~4階)微分プログラム
-// void CarlikeMobileRobot::calcRqDiff(double q, double Rq[][2]) {
+// void CarLikeMobileRobot::calcRqDiff(double q, double Rq[][2]) {
 // 	// nCk計算プログラムの呼び出し
 // 	for (int i = 0; i < N + 1; i ++) {
 // 		for (int j = 0; j < 5; j ++) {
@@ -433,7 +425,7 @@ void CarlikeMobileRobot::publishCommand() {
 // }
 
 // ベジェ曲線R(q)のsでの(0~4階)微分プログラム
-// void CarlikeMobileRobot::calcRsDiff(double q, double Rq[][2], double Rs[][2]) {
+// void CarLikeMobileRobot::calcRsDiff(double q, double Rq[][2], double Rs[][2]) {
 
 // 	// R(q)のqでの1階微分した時のノルム(dsdq)
 // 	double dsdq = sqrt(pow(Rq[1][0], 2) + pow(Rq[1][1], 2));
@@ -452,7 +444,7 @@ void CarlikeMobileRobot::publishCommand() {
 // }
 
 // // 曲率cのsでの(0~2階)微分プログラム
-// void CarlikeMobileRobot::calcCurvature(double Rs[][2], double curv[3]) {
+// void CarLikeMobileRobot::calcCurvature(double Rs[][2], double curv[3]) {
 //     curv[0] = Rs[2][0] * (-Rs[1][1])
 //             + Rs[2][1] * Rs[1][0];
 //     curv[1] = (Rs[3][0] + Rs[1][0] * pow(curv[0], 2)) * (-Rs[1][1])
@@ -462,85 +454,79 @@ void CarlikeMobileRobot::publishCommand() {
 // }
 
 
-// std::vector<double> CarlikeMobileRobot::getOutputVariables(double t) {
+// std::vector<double> CarLikeMobileRobot::getOutputVariables(double t) {
 // 	std::array<double, 2> form_closure_score = evaluateFormClosureScore(true_vehicle1_pos_, true_vehicle2_pos_, true_vehicle3_pos_);
 //     return {t, x_, y_, th_, phi_, s_, d_, dd, th1_ - thetat_, thetap1d};
 // }
 
 
 
-void CarlikeMobileRobot::initializePublishers() {
-    front_left_pub_ = nh_.advertise<std_msgs::Float64>("/car_like_mobile_robot/vehicle_front_left_trans/command", 1);
-    front_left_steering_pub_ = nh_.advertise<std_msgs::Float64>("/car_like_mobile_robot/vehicle_front_left_steering_trans/command", 1);
-    front_right_pub_ = nh_.advertise<std_msgs::Float64>("/car_like_mobile_robot/vehicle_front_right_trans/command", 1);
-    front_right_steering_pub_ = nh_.advertise<std_msgs::Float64>("/car_like_mobile_robot/vehicle_front_right_steering_trans/command", 1);
-    rear_left_pub_ = nh_.advertise<std_msgs::Float64>("/car_like_mobile_robot/vehicle_rear_left_trans/command", 1);
-    rear_right_pub_ = nh_.advertise<std_msgs::Float64>("/car_like_mobile_robot/vehicle_rear_right_trans/command", 1);
+void CarLikeMobileRobot::initializePublishers() {
+    front_left_steering_pub_ = this->create_publisher<std_msgs::msg::Float64>("/car_like_mobile_robot/vehicle_front_left_steering_trans/command", 1);
+    front_right_steering_pub_ = this->create_publisher<std_msgs::msg::Float64>("/car_like_mobile_robot/vehicle_front_right_steering_trans/command", 1);
+    rear_left_pub_ = this->create_publisher<std_msgs::msg::Float64>("/car_like_mobile_robot/vehicle_rear_left_trans/command", 1);
+    rear_right_pub_ = this->create_publisher<std_msgs::msg::Float64>("/car_like_mobile_robot/vehicle_rear_right_trans/command", 1);
 }
 
-
-void CarlikeMobileRobot::publishSteeringAngles(double phi_l, double phi_r) {
-    std_msgs::Float64 front_left_steering_msg, front_right_steering_msg;
+void CarLikeMobileRobot::publishSteeringAngles(double phi_l, double phi_r) {
+    std_msgs::msg::Float64 front_left_steering_msg, front_right_steering_msg;
     front_left_steering_msg.data = phi_l;
     front_right_steering_msg.data = phi_r;
-    front_left_steering_pub_.publish(front_left_steering_msg);
-    front_right_steering_pub_.publish(front_right_steering_msg);
+    front_left_steering_pub_->publish(front_left_steering_msg);
+    front_right_steering_pub_->publish(front_right_steering_msg);
 }
 
-void CarlikeMobileRobot::publishWheelSpeeds(double omega_l, double omega_r) {
-    std_msgs::Float64 front_left_msg, front_right_msg, rear_left_msg, rear_right_msg;
-    front_left_msg.data = 0.0;  // 受動車輪のため目標値は0
-    front_right_msg.data = 0.0; // 受動車輪のため目標値は0
+void CarLikeMobileRobot::publishWheelSpeeds(double omega_l, double omega_r) {
+    std_msgs::msg::Float64 rear_left_msg, rear_right_msg;
     rear_left_msg.data = omega_l;
     rear_right_msg.data = omega_r;
-    front_left_pub_.publish(front_left_msg);
-    front_right_pub_.publish(front_right_msg);
-    rear_left_pub_.publish(rear_left_msg);
-    rear_right_pub_.publish(rear_right_msg);
+    rear_left_pub_->publish(rear_left_msg);
+    rear_right_pub_->publish(rear_right_msg);
 }
 
 
 int main(int argc, char **argv) {
-    rclcpp::init(argc, argv, "car_like_mobile_robot_controller");
-    ros::NodeHandle nh;
+    rclcpp::init(argc, argv);
 
-    CarlikeMobileRobot car_like_mobile_robot(nh);
+    auto car_like_mobile_robot = std::make_shared<CarLikeMobileRobot>();
     
     void calcDesiredPathParam();
 
-    int pub_rate = 50;
-
-    ros::Rate loop_rate(pub_rate);
+    rclcpp::Rate loop_rate(50);
 
     char input;
     std::cout << "Press 's' to start publishing\n";
     std::cin >> input;
 
-    ros::Time start_time = ros::Time::now();
+    if (input != 's') {
+        std::cout << "Exiting program.\n";
+        rclcpp::shutdown();
+        return 0;
+    }
 
+    rclcpp::Time start_time = car_like_mobile_robot->now();
     double pre_t = 0.0;
 
-    int count = 0;
-    while (ros::ok() && input == 's') {
+    while (rclcpp::ok() && input == 's') {
 
-        double t = (ros::Time::now() - start_time).toSec();
+        double t = (car_like_mobile_robot->now() - start_time).seconds();
         double dt = t - pre_t;
 
-        getCurrentStateVariables();
-        std::array<double, 2> u = calcControlInput();
-        calcCommand(dt, u); // 関数名要検討
-        publishCommand();
+        car_like_mobile_robot->getCurrentStateVariables();
+        std::array<double, 2> u = car_like_mobile_robot->calcControlInput();
+        car_like_mobile_robot->calcCommand(dt, u); // 関数名要検討
+        car_like_mobile_robot->publishCommand();
 
-        if (car_like_mobile_robot.isAtEndPoint) {
+        if (car_like_mobile_robot->isAtEndPoint) {
             break;
         }
 
         pre_t = t;
 
-        count++;
-        ros::spinOnce();
+        rclcpp::spin_some(car_like_mobile_robot);
         loop_rate.sleep();
     }
 
+    rclcpp::shutdown();
     return 0;
 }

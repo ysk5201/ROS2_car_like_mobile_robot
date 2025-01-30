@@ -4,18 +4,19 @@
 #define CAR_LIKE_MOBILE_ROBOT_HPP_
 
 #include <array>
+#include <vector>
 #include <rclcpp/rclcpp.hpp>
-#include <sensor_msgs/JointState.h>
-#include <std_msgs/Float64.h>
-#include <std_msgs/Float64MultiArray.h>
+// #include <sensor_msgs/msg/joint_state.hpp>
+#include <std_msgs/msg/float64.hpp>
+#include <std_msgs/msg/float64_multi_array.hpp>
 // #include "cooperative_transportation_system_pkg/cooperative_transportation_system_constants.hpp"
 
 
-class CarlikeMobileRobot : public rclcpp::Node {
+class CarLikeMobileRobot : public rclcpp::Node {
 public:
     // Constractor and Destructor
-    CarlikeMobileRobot(const ros::NodeHandle& nh);
-    ~CarlikeMobileRobot();
+    CarLikeMobileRobot();
+    ~CarLikeMobileRobot();
 
     // Member functions
     void calcDesiredPathParam();
@@ -47,8 +48,7 @@ private:
     };
 
     // Member Variables
-    rclcpp::NodeHandle nh_;
-    // ros::Subscriber true_state_variables_sub_;
+    // rclcpp::Subscriber true_state_variables_sub_;
     double pre_time_;
     double x_, y_, th_, phi_;
     double s_, d_, thetat_;
@@ -58,19 +58,19 @@ private:
     double rl_linear_velocity_, rr_linear_velocity_;
     
     rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr front_left_pub_;
-    rclcpp::Publisher front_left_steering_pub_;
-    rclcpp::Publisher front_right_pub_;
-    rclcpp::Publisher front_right_steering_pub_;
-    rclcpp::Publisher rear_left_pub_;
-    rclcpp::Publisher rear_right_pub_;
+    rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr front_left_steering_pub_;
+    rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr front_right_pub_;
+    rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr front_right_steering_pub_;
+    rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr rear_left_pub_;
+    rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr rear_right_pub_;
 
-    double s_array_[Q_DIV_NUM + 1]; // qに対応する経路長
-    std::vector<std::vector<long long>> Com_; // nCk(Com_[n][k])の値を格納(Com_[N + 1][N + 1])
+    // double s_array_[Q_DIV_NUM + 1]; // qに対応する経路長
+    // std::vector<std::vector<long long>> Com_; // nCk(Com_[n][k])の値を格納(Com_[N + 1][N + 1])
     
-    bool is_full_search_; // Ps探索(全探索, 部分探索)
+    // bool is_full_search_; // Ps探索(全探索, 部分探索)
     
     // Member functions
-    // void initializeSubscribers();
+    void initializeSubscribers();
     
     // // ベジェ曲線R(q)の微分に使用
     // void calc_com();
@@ -80,8 +80,8 @@ private:
     // void s_initial(double *q_max, double *dq, double s_x0[S_DIM + 1]);
     // double s_f0(double s_x[S_DIM + 1]);
     // double s_f1(double s_x[S_DIM + 1]);
-    // typedef double (CarlikeMobileRobot::*s_FUNC)(double*);
-    // s_FUNC s_f[S_DIM+1] = {&CarlikeMobileRobot::s_f0, &CarlikeMobileRobot::s_f1};
+    // typedef double (CarLikeMobileRobot::*s_FUNC)(double*);
+    // s_FUNC s_f[S_DIM+1] = {&CarLikeMobileRobot::s_f0, &CarLikeMobileRobot::s_f1};
 
     // void truePositionCallback(const nav_msgs::Odometry::ConstPtr& msg);
     // void setCurrentPosition(double pos_x0, double pos_y0, double pos_th0);
@@ -103,15 +103,14 @@ private:
     // double f2(double x[RUNGE_DIM + 1]);  // y
     // double f3(double x[RUNGE_DIM + 1]);  // th
     // double f4(double x[RUNGE_DIM + 1]);  // phi
-    // typedef double (CarlikeMobileRobot::*FUNC)(double*);
-    // FUNC f[RUNGE_DIM + 1] = {&CarlikeMobileRobot::f0,
-    //                         &CarlikeMobileRobot::f1,
-    //                         &CarlikeMobileRobot::f2,
-    //                         &CarlikeMobileRobot::f3,
-    //                         &CarlikeMobileRobot::f4,};
+    // typedef double (CarLikeMobileRobot::*FUNC)(double*);
+    // FUNC f[RUNGE_DIM + 1] = {&CarLikeMobileRobot::f0,
+    //                         &CarLikeMobileRobot::f1,
+    //                         &CarLikeMobileRobot::f2,
+    //                         &CarLikeMobileRobot::f3,
+    //                         &CarLikeMobileRobot::f4,};
     
     void initializePublishers();
-
     void publishSteeringAngles(double phi_l, double phi_r);
     void publishWheelSpeeds(double omega_l, double omega_r);
 

@@ -7,9 +7,22 @@ endif()
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(geometry_msgs REQUIRED)
 # uncomment the following section in order to fill in
 # further dependencies manually.
 # find_package(<dependency> REQUIRED)
+
+include_directories(include)
+
+# 実行ファイルのビルド
+add_executable(car_like_mobile_robot src/car_like_mobile_robot.cpp)
+
+# 必要なライブラリをリンク
+ament_target_dependencies(car_like_mobile_robot rclcpp geometry_msgs)
+
+install(TARGETS car_like_mobile_robot
+  DESTINATION lib/${PROJECT_NAME})
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
