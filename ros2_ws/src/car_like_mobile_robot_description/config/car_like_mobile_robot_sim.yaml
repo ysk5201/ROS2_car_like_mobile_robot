@@ -1,0 +1,26 @@
+controller_manager:
+  ros__parameters:
+    update_rate: 100  # Hz
+
+    joint_state_broadcaster:
+      type: joint_state_broadcaster/JointStateBroadcaster #joint_state_controller
+
+    # 速度入力、トルク出力用のコントローラ
+    front_steering_position_controller:
+      type: position_controllers/JointGroupPositionController
+
+    rear_wheel_speed_controller:
+      type: velocity_controllers/JointGroupVelocityController
+      
+
+front_steering_position_controller:
+  ros__parameters:
+    joints:
+      - vehicle_front_left_steering_joint
+      - vehicle_front_right_steering_joint
+
+rear_wheel_speed_controller:
+  ros__parameters:
+    joints:
+      - vehicle_rear_left_joint
+      - vehicle_rear_right_joint

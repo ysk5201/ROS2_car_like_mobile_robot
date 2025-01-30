@@ -2,6 +2,8 @@
 
     <!-- <xacro:include filename="$(find cooperative_transportation_system_pkg)/xacro/cooperative_transportation_system.trans" />
     <xacro:include filename="$(find cooperative_transportation_system_pkg)/xacro/gazebo_plugin.xacro" /> -->
+    <xacro:include filename="$(find car_like_mobile_robot_description)/urdf/include/ros2_control.xacro" />
+    <xacro:include filename="$(find car_like_mobile_robot_description)/urdf/include/gazebo_plugin.xacro" />
 
     <!-- define color -->
     <material name="gray">
