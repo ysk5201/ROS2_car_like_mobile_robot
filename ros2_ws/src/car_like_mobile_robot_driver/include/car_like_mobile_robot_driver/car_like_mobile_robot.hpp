@@ -88,8 +88,11 @@ private:
     void calc_com(); // 二項係数の計算を実行 & 配列に格納
 
     void calcBezierParameters(); // ベジェ曲線パラメータを計算する関数
-    void calcArcLength(std::vector<double>& s_values); // ベジェ曲線の経路長を計算する関数
-    double calcArcLengthDerivative(double q); // ベジェ曲線の経路長の微分方程式
+	void calcArcLength(std::vector<double>& s_values); // ベジェ曲線の経路長を計算
+    double s_f0(double s_x[S_DIM + 1]);
+    double s_f1(double s_x[S_DIM + 1]);
+    typedef double (CarLikeMobileRobot::*s_FUNC)(double*);
+    s_FUNC s_f[S_DIM+1] = {&CarLikeMobileRobot::s_f0, &CarLikeMobileRobot::s_f1};
     long long nCk(int n, int k); // 二項係数の計算結果を取得する関数
     void calcRqDiff(double q, double Rq[][2]);
     void calcRsDiff(double q, double Rq[][2], double Rs[][2]);

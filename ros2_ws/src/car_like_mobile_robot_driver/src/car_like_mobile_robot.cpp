@@ -125,71 +125,90 @@ void CarLikeMobileRobot::calcBezierParameters() {
     //bezier_data_にsを保存
     for (int j = 0; j <= Q_DIV_NUM; j++) {
         bezier_data_[j].s = s_values[j];
-        printf("s=%lf\n", bezier_data_[j].s);
+        // printf("s=%lf\n", bezier_data_[j].s);
     }
 
-    // RCLCPP_INFO(this->get_logger(), "Bezier curve length (s) at q=1.0: %f", bezier_data_[Q_DIV_NUM].s);
-    printf("q=1.0: s=%lf\n", bezier_data_[Q_DIV_NUM-1].s);
-
+    RCLCPP_INFO(this->get_logger(), "Bezier curve length : %f", bezier_data_[Q_DIV_NUM].s);
 }
 
-// 経路長sを計算
 void CarLikeMobileRobot::calcArcLength(std::vector<double>& s_values) {
-    std::array<std::array<double, 4>, S_DIM+1> s_k, s_q, s_r;
-    std::array<std::array<double, S_DIM+1>, 3> s_x;
-    std::array<double, S_DIM+1> prev_s_values, new_s_values;
+
+	double s_k[S_DIM+1][4], s_q[S_DIM+1][4], s_r[S_DIM+1][4];
+	double s_x[3][S_DIM+1];
+	double s_x_old[S_DIM+1], s_x_new[S_DIM+1];
+
+	int     i, j, time;
+	long	n;
+    
+	for (int i = 0; i < S_DIM + 1; i ++ ) {
+		s_x_old[i] = 0.0;
+	}
 
     double q_max = 1.0;
-    double dq = q_max / Q_DIV_NUM;
+	double dq = q_max / Q_DIV_NUM; // サンプリング間隔
+	
+    n = Q_DIV_NUM + 1;
 
-    prev_s_values.fill(0.0);
-    new_s_values.fill(0.0);
+	// 初期値を配列に保存
+    s_values[0] = s_x_old[1];  // 初期値
 
-    s_values[0] = prev_s_values[1];  // 初期値
+	for (i = 0 ; i < S_DIM+1 ; i++)
+		s_q[i][3] = 0.0;
+	for (j = 1 ; j < n ; j++) {
 
-    for (int j = 1; j <= Q_DIV_NUM; j++) {
-        for (int i = 0; i < S_DIM + 1; i++) {
-            s_k[i][0] = dq * calcArcLengthDerivative(prev_s_values[0]);
-            s_r[i][0] = (s_k[i][0] - 2.0 * s_q[i][3]) / 2.0;
-            s_x[0][i] = prev_s_values[i] + s_r[i][0];
-            s_q[i][0] = s_q[i][3] + 3.0 * s_r[i][0] - s_k[i][0] / 2.0;
-        }
-        for (int i = 0; i < S_DIM + 1; i++) {
-            s_k[i][1] = dq * calcArcLengthDerivative(s_x[0][0]);
-            s_r[i][1] = (1.0 - std::sqrt(0.5)) * (s_k[i][1] - s_q[i][0]);
-            s_x[1][i] = s_x[0][i] + s_r[i][1];
-            s_q[i][1] = s_q[i][0] + 3.0 * s_r[i][1] - (1.0 - std::sqrt(0.5)) * s_k[i][1];
-        }
-        for (int i = 0; i < S_DIM + 1; i++) {
-            s_k[i][2] = dq * calcArcLengthDerivative(s_x[1][0]);
-            s_r[i][2] = (1.0 + std::sqrt(0.5)) * (s_k[i][2] - s_q[i][1]);
-            s_x[2][i] = s_x[1][i] + s_r[i][2];
-            s_q[i][2] = s_q[i][1] + 3.0 * s_r[i][2] - (1.0 + std::sqrt(0.5)) * s_k[i][2];
-        }
-        for (int i = 0; i < S_DIM + 1; i++) {
-            s_k[i][3] = dq * calcArcLengthDerivative(s_x[2][0]);
-            s_r[i][3] = (s_k[i][3] - 2.0 * s_q[i][2]) / 6.0;
-            new_s_values[i] = s_x[2][i] + s_r[i][3];
-            s_q[i][3] = s_q[i][2] + 3.0 * s_r[i][3] - s_k[i][3] / 2.0;
-        }
+		for (i = 0 ; i < S_DIM+1 ; i++) {
+			s_k[i][0] = dq * (this->*s_f[i])(s_x_old);
+			s_r[i][0] = (s_k[i][0] - 2.0 * s_q[i][3]) / 2.0;
+			s_x[0][i] = s_x_old[i] + s_r[i][0];
+			s_q[i][0] = s_q[i][3] + 3.0 * s_r[i][0] - s_k[i][0] / 2.0;
+		}
+		for (i = 0 ; i < S_DIM+1 ; i++) {
+			s_k[i][1] = dq * (this->*s_f[i])(s_x[0]);
+			s_r[i][1] = (1.0 - sqrt(0.5)) * (s_k[i][1] - s_q[i][0]);
+			s_x[1][i] = s_x[0][i] + s_r[i][1];
+			s_q[i][1] = s_q[i][0] + 3.0 * s_r[i][1] - (1.0 - sqrt(0.5)) * s_k[i][1];
+		}
+		for (i = 0 ; i < S_DIM+1 ; i++) {
+			s_k[i][2] = dq * (this->*s_f[i])(s_x[1]);
+			s_r[i][2] = (1.0 + sqrt(0.5)) * (s_k[i][2] - s_q[i][1]);
+			s_x[2][i] = s_x[1][i] + s_r[i][2];
+			s_q[i][2] = s_q[i][1] + 3.0 * s_r[i][2] - (1.0 + sqrt(0.5)) * s_k[i][2];
+		}
+		for (i = 0 ; i < S_DIM+1 ; i++) {
+			s_k[i][3] = dq * (this->*s_f[i])(s_x[2]);
+			s_r[i][3] = (s_k[i][3] - 2.0 * s_q[i][2]) / 6.0;
+			s_x_new[i] = s_x[2][i] + s_r[i][3];
+			s_q[i][3] = s_q[i][2] + 3.0 * s_r[i][3] - s_k[i][3] / 2.0;
+		}
 
-        s_values[j] = new_s_values[1];  // 計算した経路長を格納
-        prev_s_values = new_s_values;
-    }
+		time = j;
+		time = j - time;
+		
+		if (time == 0 ) {
+            s_values[j] = s_x_new[1];  // 計算した経路長を格納
+		}
+
+		for (i = 0 ; i < S_DIM+1 ; i++) {
+			s_x_old[i] = s_x_new[i];
+        }
+	}
+}
+
+double CarLikeMobileRobot::s_f0(double s_x[S_DIM + 1]) {
+	return(1.0);
 }
 
 // 経路長の微分方程式(dsdq)
-double CarLikeMobileRobot::calcArcLengthDerivative(double q) {
-    double Rq_x = 0.0;
-    double Rq_y = 0.0;
-
-    for (int i = 1; i < N + 1; i++) {
-        double weight = nCk(N, i) * i * std::pow(q, i - 1) * std::pow(1 - q, N - i);
-        Rq_x += weight * (-B[i - 1][0] + B[i][0]);
-        Rq_y += weight * (-B[i - 1][1] + B[i][1]);
+double CarLikeMobileRobot::s_f1(double s_x[S_DIM + 1]) {
+	double q = s_x[0];
+	double Rq_x = 0.0;
+	double Rq_y = 0.0;
+	for (int i = 1; i < N + 1; i ++) {
+		double weight = nCk(N, i) * i * std::pow(q, i - 1) * std::pow(1 - q, N - i);
+		Rq_x += weight * (-B[i - 1][0] + B[i][0]);
+		Rq_y += weight * (-B[i - 1][1] + B[i][1]);
     }
-
-    return std::sqrt(std::pow(Rq_x, 2.0) + std::pow(Rq_y, 2.0));
+	return std::sqrt(std::pow(Rq_x, 2.0) + std::pow(Rq_y, 2.0));
 }
 
 long long CarLikeMobileRobot::nCk(int n, int k) {
