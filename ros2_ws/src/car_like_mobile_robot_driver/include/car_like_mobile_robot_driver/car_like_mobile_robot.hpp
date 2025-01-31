@@ -30,14 +30,16 @@ public:
 
 private:
     // constants
-    static constexpr int N = 3;                   // 3次ベジェ曲線
-    static constexpr int S_DIM = 1;               // 経路長の数値積分の次元数
-    static constexpr int Q_DIV_NUM = 100000;      // ベジェ曲線q[0,1]の分割数
-    static constexpr int STATE_VARIABLE_DIM = 20; // 協調搬送システムの状態変数
-    static constexpr int RUNGE_DIM = 4;           // Runge()で計算する状態変数の数
-    static constexpr int PARTIAL = 50; // 部分探索の範囲[last_j_-PARTIAL, last_j_+PARTIAL]
-    static constexpr double PI = 3.1415926535897932384626433832795028841971;
-    static constexpr double lv = 1.0;              // 車軸間距離[m]
+    static constexpr int N = 3;                    // 3次ベジェ曲線
+    static constexpr int S_DIM = 1;                // 経路長の数値積分の次元数
+    static constexpr int Q_DIV_NUM = 100000;       // ベジェ曲線q[0,1]の分割数
+    // static constexpr int STATE_VARIABLE_DIM = 4;   // 車両型移動ロボットの状態変数
+    // static constexpr int RUNGE_DIM = 4;            // Runge()で計算する状態変数の数
+    static constexpr int PARTIAL = 50;             // 部分探索の範囲[q_search_index_ - PARTIAL, q_search_index_ + PARTIAL]
+    static constexpr double PI = 3.141592653589793;
+    static constexpr double WHEEL_BASE = 1.0;      // 車軸間距離(m) (URDFと統一)
+    static constexpr double TREAD_WIDTH = 0.856;   // 左右車輪間距離(m) (URDFと統一)
+    static constexpr double WHEEL_RADIUS = 0.3;    // 車輪半径(m) (URDFと統一)
 
     // 制御点を定義
     const double B[N + 1][2] = {
@@ -50,6 +52,7 @@ private:
     // Member Variables
     // rclcpp::Subscriber true_state_variables_sub_;
     
+    // ベジェ曲線の構造体を定義
     struct BezierParameters {
         double q;            // ベジェ曲線パラメータ
         double s;            // 経路長
@@ -95,7 +98,7 @@ private:
     s_FUNC s_f[S_DIM+1] = {&CarLikeMobileRobot::s_f0, &CarLikeMobileRobot::s_f1};
     long long nCk(int n, int k); // 二項係数の計算結果を取得する関数
     void calcRqDiff(double q, double Rq[][2]);
-    void calcRsDiff(double q, double Rq[][2], double Rs[][2]);
+    void calcRsDiff(double Rq[][2], double Rs[][2]);
     void calcCurvature(double Rs[][2], double curv[3]);
 
     // void truePositionCallback(const nav_msgs::Odometry::ConstPtr& msg);
@@ -124,7 +127,7 @@ private:
     
     void initializePublishers();
     void publishSteeringAngles(double phi_l, double phi_r);
-    void publishWheelSpeeds(double omega_l, double omega_r);
+    void publishWheelAngularVelocities(double omega_l, double omega_r);
 
 };
 

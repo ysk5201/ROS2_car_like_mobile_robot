@@ -36,7 +36,6 @@ void CarLikeMobileRobot::calc_com() {
     }
 }
 
-
 void CarLikeMobileRobot::calcDesiredPathParams() {
     calcBezierParameters(); // ベジェ曲線のパラメータを計算 & bezier_data_に格納
 }
@@ -58,27 +57,41 @@ std::array<double, 2> CarLikeMobileRobot::calcControlInput() {
 
 	double fw1 = 0.2; // 速度の定義[m/s]
 
-    double u1 = 0.2;
-    double u2 = 0.5;
+    double u1 = 1.0;
+    double u2 = 0.2;
 
     return {u1, u2};
 }
 
 void CarLikeMobileRobot::calcCommand(double dt, const std::array<double, 2>& u) {
 
-    double v = u[0];
-    double future_phi = u[1] * dt;
-    // ワンステップ先のステアリング角度
-    fl_steering_angle_ = 0.0;
-    fr_steering_angle_ = 0.0;
+    double u1 = u[0];
+    double u2 = u[1];
+
+    double velocity = u1; // 後輪間中点の速度
+    double current_phi = phi_;
+    double future_phi = current_phi + (u2 * dt); // 未来の前輪ステアリング角度
+
+    double new_r = WHEEL_BASE / tan(future_phi); // 未来の旋回半径
+    double phi_l = atan(WHEEL_BASE / (new_r - (0.5 * TREAD_WIDTH)));
+    double phi_r = atan(WHEEL_BASE / (new_r + (0.5 * TREAD_WIDTH)));
+
+    double current_r = WHEEL_BASE / tan(current_phi); // 現在の旋回半径
+    double omega = velocity / current_r;              // 後輪間中点の旋回角速度
+    double omega_l = (velocity - (0.5 * TREAD_WIDTH * omega)) / WHEEL_RADIUS;
+    double omega_r = (velocity + (0.5 * TREAD_WIDTH * omega)) / WHEEL_RADIUS;
+
+    // 未来の前輪ステアリング角度
+    fl_steering_angle_ = phi_l;
+    fr_steering_angle_ = phi_r;
     // 現在の後輪回転速度
-    rl_linear_velocity_ = 1.0;
-    rr_linear_velocity_ = 1.0;
+    rl_linear_velocity_ = omega_l;
+    rr_linear_velocity_ = omega_r;
 }
 
 void CarLikeMobileRobot::publishCommand() {
     publishSteeringAngles(fl_steering_angle_, fr_steering_angle_);
-    publishWheelSpeeds(rl_linear_velocity_, rr_linear_velocity_);
+    publishWheelAngularVelocities(rl_linear_velocity_, rr_linear_velocity_);
 }
 
 // double CarLikeMobileRobot::Sec(double a) {
@@ -105,7 +118,7 @@ void CarLikeMobileRobot::calcBezierParameters() {
         double curv[3] = {};   // 曲率の微分
 
         calcRqDiff(q, Rq);
-        calcRsDiff(q, Rq, Rs);
+        calcRsDiff(Rq, Rs);
         calcCurvature(Rs, curv);
 
         params.Rx = Rq[0][0];
@@ -264,7 +277,7 @@ void CarLikeMobileRobot::calcRqDiff(double q, double Rq[][2]) {
 }
 
 // ベジェ曲線R(q)のsでの(0~4階)微分プログラム
-void CarLikeMobileRobot::calcRsDiff(double q, double Rq[][2], double Rs[][2]) {
+void CarLikeMobileRobot::calcRsDiff(double Rq[][2], double Rs[][2]) {
 
 	// R(q)のqでの1階微分した時のノルム(dsdq)
 	double dsdq = sqrt(std::pow(Rq[1][0], 2) + std::pow(Rq[1][1], 2));
@@ -364,7 +377,7 @@ void CarLikeMobileRobot::calcCurvature(double Rs[][2], double curv[3]) {
 
 // double CarLikeMobileRobot::f3(double x[RUNGE_DIM + 1]) {
 // 	double u1 = u_[0];
-// 	double ret = u1 * tan(th_) / lv;
+// 	double ret = u1 * tan(th_) / WHEEL_BASE;
 // 	return(ret);
 // }
 
@@ -391,7 +404,7 @@ void CarLikeMobileRobot::calcCurvature(double Rs[][2], double curv[3]) {
 //     double curv[3]={0};  // 曲率cをsで(0~2回)微分した配列
 
 // 	calcRqDiff(q, Rq);      // ベジェ曲線R(q)のqでの(0~4階)微分プログラム
-// 	calcRsDiff(q, Rq, Rs);  // ベジェ曲線R(q)のsでの(0~4階)微分プログラム
+// 	calcRsDiff(Rq, Rs);  // ベジェ曲線R(q)のsでの(0~4階)微分プログラム
 // 	calcCurvature(Rs, curv); // 曲率cのsでの(0~2階)微分プログラム
 
 // 	double dsdq = sqrt(std::pow(Rq[1][0], 2.0) + std::pow(Rq[1][1], 2.0));
@@ -481,7 +494,7 @@ void CarLikeMobileRobot::publishSteeringAngles(double phi_l, double phi_r) {
     front_right_steering_pub_->publish(front_right_steering_msg);
 }
 
-void CarLikeMobileRobot::publishWheelSpeeds(double omega_l, double omega_r) {
+void CarLikeMobileRobot::publishWheelAngularVelocities(double omega_l, double omega_r) {
     std_msgs::msg::Float64 rear_left_msg, rear_right_msg;
     rear_left_msg.data = omega_l;
     rear_right_msg.data = omega_r;
@@ -517,10 +530,10 @@ int main(int argc, char **argv) {
         double t = (car_like_mobile_robot->now() - start_time).seconds();
         double dt = t - pre_t;
 
-        car_like_mobile_robot->getCurrentStateVariables();
-        std::array<double, 2> u = car_like_mobile_robot->calcControlInput();
-        car_like_mobile_robot->calcCommand(dt, u); // 関数名要検討
-        car_like_mobile_robot->publishCommand();
+        car_like_mobile_robot->getCurrentStateVariables();                   // 状態変数を取得
+        std::array<double, 2> u = car_like_mobile_robot->calcControlInput(); // 状態変数から制御入力を導出
+        car_like_mobile_robot->calcCommand(dt, u);                           // 制御入力を後輪回転角速度とステアリング角度に変換
+        car_like_mobile_robot->publishCommand();                             // 後輪回転角速度とステアリング角度をpublsih
 
         if (car_like_mobile_robot->isAtEndPoint) {
             break;
