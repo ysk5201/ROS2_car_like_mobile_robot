@@ -55,6 +55,35 @@ std::array<double, 2> CarLikeMobileRobot::calcControlInput() {
     double th = th_;
     double phi = phi_;
 
+    
+		
+    // bezier_curve(x_old[1], x_old[2], &d, &tt, &c, &c1, &c2);
+    // tp = x_old[3] - tt; // theta_p = theta - theta_t
+    // sec = 1.0 / cos(tp);
+
+    // alpha1 = (-d*pow(c,3.0)*tan(tp)*(3*pow(l,2.0)*pow(sec,2.0)+ 9*d*l*pow(sec,3.0)*tan(x_old[4])+3*pow(d,2.0)*pow(sec,4.0)*pow(tan(x_old[4]),2.0)+pow(l,2.0)*(2+3*pow(tan(tp),2.0))) +
+    //                 pow(c,2.0)*tan(tp)*(3*pow(l,2.0)*pow(sec,2.0)+18*d*l*pow(sec,3.0)*tan(x_old[4])+9*pow(d,2.0)*pow(sec,4.0)*pow(tan(x_old[4]),2.0)+pow(l,2.0)*(2+3*pow(tan(tp),2.0))) -
+    //                 l*(l*pow(sec,2.0)+3*d*pow(sec,3.0)*tan(x_old[4])+2*l*pow(tan(tp),2.0))*c1 +
+    //                 3*c*(-3*pow(sec,3.0)*tan(x_old[4])*(l+d*sec*tan(x_old[4]))*tan(tp) +
+    //                 d*l*(l*pow(sec,2.0)+d*pow(sec,3.0)*tan(x_old[4])+l*pow(tan(tp),2.0))*c1)+tan(tp)*(3*pow(sec,4.0)*pow(tan(x_old[4]),2.0)-d*pow(l,2.0)*c2)) / pow(l,2.0);
+
+    // alpha2 = l * pow(cos(tp), 3.0) * pow(cos(x_old[4]), 2.0) / pow((1-d*c), 2.0);
+
+    // x2 = -c1*d*tan(tp)-c*(1-d*c)*(1+pow(sin(tp),2.0))/pow(cos(tp),2.0)+pow(1-d*c,2.0)*tan(x_old[4])/(l*pow(cos(tp),3.0));
+    // x3 = (1-d*c)*tan(tp);
+    // x4 = d;
+
+    // double t = (j-1)*h; // 現在の時間
+
+    // w1 = 0.50*sin(t)+1.0;
+    // w2 = p11*abs(w1)*x2 + p12*w1*x3 + p13*abs(w1)*x4;
+
+    // u1 = w1;
+    // u2 = w2;
+
+    // v1 = (1 - d*c) * u1 / cos(tp);
+    // v2 = alpha2*(u2-alpha1*u1);
+
 	double fw1 = 0.2; // 速度の定義[m/s]
 
     double u1 = 1.0;
@@ -111,7 +140,6 @@ void CarLikeMobileRobot::calcBezierParameters() {
         double q = static_cast<double>(j) / Q_DIV_NUM;
 
         BezierParameters params;
-        params.q = q;
 
         double Rq[5][2] = {};  // ベジェ曲線のqでの微分
         double Rs[5][2] = {};  // sでの微分
@@ -121,14 +149,21 @@ void CarLikeMobileRobot::calcBezierParameters() {
         calcRsDiff(Rq, Rs);
         calcCurvature(Rs, curv);
 
-        params.Rx = Rq[0][0];
-        params.Ry = Rq[0][1];
-        params.dRxdq = Rq[1][0];
-        params.dRydq = Rq[1][1];
+        double dsdq = std::sqrt(std::pow(Rq[1][0], 2.0) + std::pow(Rq[1][1], 2.0));
 
-        params.c = curv[0];
-        params.dcds = curv[1];
+        // 単位ベクトルeの(x, y)成分
+        double dRxds = Rq[1][0]/dsdq;
+        double dRyds = Rq[1][1]/dsdq;
+
+        params.q      = q;
+        params.thetat = atan2(dRyds, dRxds);
+        params.c      = curv[0];
+        params.dcds   = curv[1];
         params.d2cds2 = curv[2];
+        params.Rx     = Rq[0][0];
+        params.Ry     = Rq[0][1];
+        params.dRxdq  = Rq[1][0];
+        params.dRydq  = Rq[1][1];
 
         bezier_data_.push_back(params);
     }
@@ -138,10 +173,18 @@ void CarLikeMobileRobot::calcBezierParameters() {
     //bezier_data_にsを保存
     for (int j = 0; j <= Q_DIV_NUM; j++) {
         bezier_data_[j].s = s_values[j];
-        // printf("s=%lf\n", bezier_data_[j].s);
     }
 
-    RCLCPP_INFO(this->get_logger(), "Bezier curve length : %f", bezier_data_[Q_DIV_NUM].s);
+    RCLCPP_INFO(this->get_logger(), "q      : %f", bezier_data_[Q_DIV_NUM].q);
+    RCLCPP_INFO(this->get_logger(), "s      : %f", bezier_data_[Q_DIV_NUM].s);
+    RCLCPP_INFO(this->get_logger(), "thetat : %f", bezier_data_[Q_DIV_NUM].thetat);
+    RCLCPP_INFO(this->get_logger(), "c      : %f", bezier_data_[Q_DIV_NUM].c);
+    RCLCPP_INFO(this->get_logger(), "dcds   : %f", bezier_data_[Q_DIV_NUM].dcds);
+    RCLCPP_INFO(this->get_logger(), "d2cds2 : %f", bezier_data_[Q_DIV_NUM].d2cds2);
+    RCLCPP_INFO(this->get_logger(), "Rx     : %f", bezier_data_[Q_DIV_NUM].Rx);
+    RCLCPP_INFO(this->get_logger(), "Ry     : %f", bezier_data_[Q_DIV_NUM].Ry);
+    RCLCPP_INFO(this->get_logger(), "dRxdq  : %f", bezier_data_[Q_DIV_NUM].dRxdq);
+    RCLCPP_INFO(this->get_logger(), "dRydq  : %f", bezier_data_[Q_DIV_NUM].dRydq);
 }
 
 void CarLikeMobileRobot::calcArcLength(std::vector<double>& s_values) {

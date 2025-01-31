@@ -56,11 +56,13 @@ private:
     struct BezierParameters {
         double q;            // ベジェ曲線パラメータ
         double s;            // 経路長
-        double Rx, Ry;       // ベジェ曲線上の座標(x, y)
-        double dRxdq, dRydq; // (x, y)の一階微分
+        double d;            // 経路上の点Psと後輪間中点の距離
+        double thetat;       // 点Psにおける接線方位角
         double c;            // 曲率
         double dcds;         // 曲率の一階微分
         double d2cds2;       // 曲率の二階微分
+        double Rx, Ry;       // ベジェ曲線上の座標(x, y)
+        double dRxdq, dRydq; // (x, y)の一階微分
     };
     
     std::vector<BezierParameters> bezier_data_; // ベジェ曲線の計算結果を保持するメンバ変数
