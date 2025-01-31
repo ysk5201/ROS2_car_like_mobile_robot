@@ -58,7 +58,7 @@ std::array<double, 2> CarLikeMobileRobot::calcControlInput() {
 	double fw1 = 0.2; // 速度の定義[m/s]
 
     double u1 = 1.0;
-    double u2 = 0.2;
+    double u2 = 0.0;
 
     return {u1, u2};
 }
@@ -480,26 +480,20 @@ void CarLikeMobileRobot::calcCurvature(double Rs[][2], double curv[3]) {
 
 
 void CarLikeMobileRobot::initializePublishers() {
-    front_left_steering_pub_ = this->create_publisher<std_msgs::msg::Float64>("/car_like_mobile_robot/vehicle_front_left_steering_trans/command", 1);
-    front_right_steering_pub_ = this->create_publisher<std_msgs::msg::Float64>("/car_like_mobile_robot/vehicle_front_right_steering_trans/command", 1);
-    rear_left_pub_ = this->create_publisher<std_msgs::msg::Float64>("/car_like_mobile_robot/vehicle_rear_left_trans/command", 1);
-    rear_right_pub_ = this->create_publisher<std_msgs::msg::Float64>("/car_like_mobile_robot/vehicle_rear_right_trans/command", 1);
+    front_steering_pub_  = this->create_publisher<std_msgs::msg::Float64MultiArray>("/front_steering_position_controller/commands", 1);
+    rear_wheel_pub_      = this->create_publisher<std_msgs::msg::Float64MultiArray>("/rear_wheel_speed_controller/commands", 1);
 }
 
 void CarLikeMobileRobot::publishSteeringAngles(double phi_l, double phi_r) {
-    std_msgs::msg::Float64 front_left_steering_msg, front_right_steering_msg;
-    front_left_steering_msg.data = phi_l;
-    front_right_steering_msg.data = phi_r;
-    front_left_steering_pub_->publish(front_left_steering_msg);
-    front_right_steering_pub_->publish(front_right_steering_msg);
+    std_msgs::msg::Float64MultiArray msg;
+    msg.data = {phi_l, phi_r};
+    front_steering_pub_->publish(msg);
 }
 
 void CarLikeMobileRobot::publishWheelAngularVelocities(double omega_l, double omega_r) {
-    std_msgs::msg::Float64 rear_left_msg, rear_right_msg;
-    rear_left_msg.data = omega_l;
-    rear_right_msg.data = omega_r;
-    rear_left_pub_->publish(rear_left_msg);
-    rear_right_pub_->publish(rear_right_msg);
+    std_msgs::msg::Float64MultiArray msg;
+    msg.data = {omega_l, omega_r};
+    rear_wheel_pub_->publish(msg);
 }
 
 

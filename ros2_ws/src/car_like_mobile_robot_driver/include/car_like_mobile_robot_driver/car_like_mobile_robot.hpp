@@ -76,13 +76,9 @@ private:
 
     double fl_steering_angle_, fr_steering_angle_;
     double rl_linear_velocity_, rr_linear_velocity_;
-    
-    rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr front_left_pub_;
-    rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr front_left_steering_pub_;
-    rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr front_right_pub_;
-    rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr front_right_steering_pub_;
-    rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr rear_left_pub_;
-    rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr rear_right_pub_;
+
+    rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr front_steering_pub_;
+    rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr rear_wheel_pub_;
     
     bool is_full_search_; // Ps探索(全探索, 部分探索)
     
