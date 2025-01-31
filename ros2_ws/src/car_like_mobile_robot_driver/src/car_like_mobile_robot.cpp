@@ -48,48 +48,97 @@ void CarLikeMobileRobot::getCurrentStateVariables() {
     phi_ = 0.0;
 }
 
-std::array<double, 2> CarLikeMobileRobot::calcControlInput() {
+std::array<double, 2> CarLikeMobileRobot::calcControlInput(double t) {
 
     double x = x_;
     double y = y_;
     double th = th_;
     double phi = phi_;
 
-    
-		
-    // bezier_curve(x_old[1], x_old[2], &d, &tt, &c, &c1, &c2);
-    // tp = x_old[3] - tt; // theta_p = theta - theta_t
-    // sec = 1.0 / cos(tp);
+    findPs(x, y); // Ps探索を行いq_search_index_を更新
 
-    // alpha1 = (-d*pow(c,3.0)*tan(tp)*(3*pow(l,2.0)*pow(sec,2.0)+ 9*d*l*pow(sec,3.0)*tan(x_old[4])+3*pow(d,2.0)*pow(sec,4.0)*pow(tan(x_old[4]),2.0)+pow(l,2.0)*(2+3*pow(tan(tp),2.0))) +
-    //                 pow(c,2.0)*tan(tp)*(3*pow(l,2.0)*pow(sec,2.0)+18*d*l*pow(sec,3.0)*tan(x_old[4])+9*pow(d,2.0)*pow(sec,4.0)*pow(tan(x_old[4]),2.0)+pow(l,2.0)*(2+3*pow(tan(tp),2.0))) -
-    //                 l*(l*pow(sec,2.0)+3*d*pow(sec,3.0)*tan(x_old[4])+2*l*pow(tan(tp),2.0))*c1 +
-    //                 3*c*(-3*pow(sec,3.0)*tan(x_old[4])*(l+d*sec*tan(x_old[4]))*tan(tp) +
-    //                 d*l*(l*pow(sec,2.0)+d*pow(sec,3.0)*tan(x_old[4])+l*pow(tan(tp),2.0))*c1)+tan(tp)*(3*pow(sec,4.0)*pow(tan(x_old[4]),2.0)-d*pow(l,2.0)*c2)) / pow(l,2.0);
+    double Rx    = bezier_data_[q_search_index_].Rx;
+    double Ry    = bezier_data_[q_search_index_].Ry;
+    double dRxdq = bezier_data_[q_search_index_].dRxdq;
+    double dRydq = bezier_data_[q_search_index_].dRydq;
 
-    // alpha2 = l * pow(cos(tp), 3.0) * pow(cos(x_old[4]), 2.0) / pow((1-d*c), 2.0);
+	double dsdq = std::sqrt(std::pow(dRxdq, 2.0) + std::pow(dRydq, 2.0));
 
-    // x2 = -c1*d*tan(tp)-c*(1-d*c)*(1+pow(sin(tp),2.0))/pow(cos(tp),2.0)+pow(1-d*c,2.0)*tan(x_old[4])/(l*pow(cos(tp),3.0));
-    // x3 = (1-d*c)*tan(tp);
-    // x4 = d;
+	// 単位ベクトルeの(x, y)成分
+    double dRxds = dRxdq / dsdq;
+    double dRyds = dRydq / dsdq;
 
-    // double t = (j-1)*h; // 現在の時間
+	// 単位ベクトルn(e+90deg)の(x, y)成分
+	double nx = -dRyds;
+	double ny = dRxds;
 
-    // w1 = 0.50*sin(t)+1.0;
-    // w2 = p11*abs(w1)*x2 + p12*w1*x3 + p13*abs(w1)*x4;
+    double d      = (x - Rx) * nx + (y - Ry) * ny; // 経路上の点Ps,後輪間中点へのベクトルとeとの内積
+    double thetat = bezier_data_[q_search_index_].thetat;
+    double c      = bezier_data_[q_search_index_].c;
+    double dcds   = bezier_data_[q_search_index_].dcds;
+    double d2cds2 = bezier_data_[q_search_index_].d2cds2;
 
-    // u1 = w1;
-    // u2 = w2;
+    double thetap = th - thetat;
+    double sec = 1.0 / cos(thetap);
 
-    // v1 = (1 - d*c) * u1 / cos(tp);
-    // v2 = alpha2*(u2-alpha1*u1);
+    double alpha1 = (-d*std::pow(c,3.0)*tan(thetap)*(3*std::pow(WHEEL_BASE,2.0)*std::pow(sec,2.0)+ 9*d*WHEEL_BASE*std::pow(sec,3.0)*tan(phi)+3*std::pow(d,2.0)*std::pow(sec,4.0)*std::pow(tan(phi),2.0)+std::pow(WHEEL_BASE,2.0)*(2+3*std::pow(tan(thetap),2.0))) +
+                    std::pow(c,2.0)*tan(thetap)*(3*std::pow(WHEEL_BASE,2.0)*std::pow(sec,2.0)+18*d*WHEEL_BASE*std::pow(sec,3.0)*tan(phi)+9*std::pow(d,2.0)*std::pow(sec,4.0)*std::pow(tan(phi),2.0)+std::pow(WHEEL_BASE,2.0)*(2+3*std::pow(tan(thetap),2.0))) -
+                    WHEEL_BASE*(WHEEL_BASE*std::pow(sec,2.0)+3*d*std::pow(sec,3.0)*tan(phi)+2*WHEEL_BASE*std::pow(tan(thetap),2.0))*dcds +
+                    3*c*(-3*std::pow(sec,3.0)*tan(phi)*(WHEEL_BASE+d*sec*tan(phi))*tan(thetap) +
+                    d*WHEEL_BASE*(WHEEL_BASE*std::pow(sec,2.0)+d*std::pow(sec,3.0)*tan(phi)+WHEEL_BASE*std::pow(tan(thetap),2.0))*dcds)+tan(thetap)*(3*std::pow(sec,4.0)*std::pow(tan(phi),2.0)-d*std::pow(WHEEL_BASE,2.0)*d2cds2)) / std::pow(WHEEL_BASE,2.0);
 
-	double fw1 = 0.2; // 速度の定義[m/s]
+    double alpha2 = WHEEL_BASE * std::pow(cos(thetap), 3.0) * std::pow(cos(phi), 2.0) / std::pow((1-d*c), 2.0);
 
-    double u1 = 1.0;
-    double u2 = 0.0;
+    double z2 = -dcds*d*tan(thetap)-c*(1-d*c)*(1+std::pow(sin(thetap),2.0))/std::pow(cos(thetap),2.0)+std::pow(1-d*c,2.0)*tan(phi)/(WHEEL_BASE*std::pow(cos(thetap),3.0));
+    double z3 = (1-d*c)*tan(thetap);
+    double z4 = d;
+
+    double w1 = 0.50 * sin(t) + 1.0; // 速度の定義[m/s]
+    double w2 = P11*abs(w1)*z2 + P12*w1*z3 + P13*abs(w1)*z4;
+
+    double u1 = (1 - d*c) * w1 / cos(thetap);
+    double u2 = alpha2*(w2-alpha1*w1);
 
     return {u1, u2};
+}
+
+void CarLikeMobileRobot::findPs(double x, double y) {
+
+    // 後輪間中点とベジェ曲線との距離の最小値を無限大で初期化
+    double min = min = std::numeric_limits<double>::max();
+
+    // 部分探索の基準点
+    int start, stop;
+
+    if (is_full_search_) {
+        start = 0;
+        stop = Q_DIV_NUM;
+        is_full_search_ = false;  // 次回以降は部分探索
+    } else {
+        // 部分探索の範囲を設定
+        start = std::max(0, q_search_index_ - PARTIAL);
+        stop = std::min(Q_DIV_NUM, q_search_index_ + PARTIAL);
+    }
+
+	// Ps探索
+    for (int j = start; j <= stop; j++) {
+        double q = static_cast<double>(j) / Q_DIV_NUM;
+
+        // ベジェ曲線上の座標 R[0] (Rx), R[1] (Ry) を計算
+        double R[2] = {0.0, 0.0};
+        for (int i = 0; i <= N; i++) {
+            double weight = nCk(N, i) * std::pow(q, i) * std::pow(1 - q, N - i);
+            R[0] += weight * B[i][0];
+            R[1] += weight * B[i][1];
+        }
+
+        // 2乗距離を計算
+        double d = std::pow(x - R[0], 2.0) + std::pow(y - R[1], 2.0);
+        if (d < min) {
+            min = d;
+            q_search_index_ = j;
+        }
+    }
 }
 
 void CarLikeMobileRobot::calcCommand(double dt, const std::array<double, 2>& u) {
@@ -430,89 +479,6 @@ void CarLikeMobileRobot::calcCurvature(double Rs[][2], double curv[3]) {
 // 	return(ret);
 // }
 
-// 後輪間中点の位置(x,y)を受け取ってベジェ曲線のs, d, thetat, c, dcds, d2cds2をそれぞれポインタで返す関数
-// void CarLikeMobileRobot::calcBezierParam(double x, double y, double& s, double& d, double& thetat, double& c, double& dcds, double& d2cds2) {
-
-// 	// Ps探索後の最適なqを保存
-//     double q = findPs(x, y);
-
-// 	if (q == 1) {
-// 		isAtEndPoint = true;
-// 	}
-
-//     // ROS_INFO("bezier_q %lf", q);
-
-// 	double Rq[5][2]={0}; // Rをqで(0~4回)微分した配列
-//     double Rs[5][2]={0}; // Rをsで(0~4回)微分した配列
-//     double curv[3]={0};  // 曲率cをsで(0~2回)微分した配列
-
-// 	calcRqDiff(q, Rq);      // ベジェ曲線R(q)のqでの(0~4階)微分プログラム
-// 	calcRsDiff(Rq, Rs);  // ベジェ曲線R(q)のsでの(0~4階)微分プログラム
-// 	calcCurvature(Rs, curv); // 曲率cのsでの(0~2階)微分プログラム
-
-// 	double dsdq = sqrt(std::pow(Rq[1][0], 2.0) + std::pow(Rq[1][1], 2.0));
-
-// 	// 単位ベクトルeの(x, y)成分
-//     double dRxds = Rq[1][0]/dsdq;
-//     double dRyds = Rq[1][1]/dsdq;
-
-// 	// 単位ベクトルn(e+90deg)の(x, y)成分
-// 	double nx = -dRyds;
-// 	double ny = dRxds;
-
-// 	// qに対応する経路長配列s_の行数を導出
-// 	int value = round(q * Q_DIV_NUM);
-
-//     s       = s_array_[value];                           // 経路長
-// 	d       = (x-Rq[0][0])*nx + (y-Rq[0][1])*ny; // 経路上の点Psと、後輪間中点へのベクトルとe、との内積をdとして返す
-//     thetat  = atan2(dRyds, dRxds);                 // 経路上の点Psにおける接線の方向角
-//     c       = curv[0];                             // 曲率c(s)
-//     dcds    = curv[1];                             // 曲率c(s)の一階微分
-//     d2cds2  = curv[2];                             // 曲率c(s)の二階微分
-// }
-
-// double CarLikeMobileRobot::findPs(double x, double y) {
-
-//     // 後輪間中点とベジェ曲線との距離の最小値を無限大で初期化
-//     double min = min = std::numeric_limits<double>::max();
-//     double save_q = 0.0; // 最適なベジェ曲線のパラメータq
-
-//     // 部分探索の基準点
-//     int start, stop;
-
-//     if (is_full_search_) {
-//         start = 0;
-//         stop = Q_DIV_NUM;
-//         is_full_search_ = false;  // 次回以降は部分探索
-//     } else {
-//         // 部分探索の範囲を設定
-//         start = std::max(0, q_search_index_ - PARTIAL);
-//         stop = std::min(Q_DIV_NUM, q_search_index_ + PARTIAL);
-//     }
-
-// 	// Ps探索
-//     for (int j = start; j <= stop; j++) {
-//         double q = static_cast<double>(j) / Q_DIV_NUM;
-
-//         // ベジェ曲線上の座標 R[0] (Rx), R[1] (Ry) を計算
-//         double R[2] = {0.0, 0.0};
-//         for (int i = 0; i <= N; i++) {
-//             double weight = nCk(N, i) * std::pow(q, i) * std::pow(1 - q, N - i);
-//             R[0] += weight * B[i][0];
-//             R[1] += weight * B[i][1];
-//         }
-
-//         // 2乗距離を計算
-//         double d = std::pow(x - R[0], 2.0) + std::pow(y - R[1], 2.0);
-//         if (d < min) {
-//             min = d;
-//             save_q = q;
-//             q_search_index_ = j;
-//         }
-//     }
-
-// 	return save_q;
-// }
 
 
 // std::vector<double> CarLikeMobileRobot::getOutputVariables(double t) {
@@ -567,10 +533,10 @@ int main(int argc, char **argv) {
         double t = (car_like_mobile_robot->now() - start_time).seconds();
         double dt = t - pre_t;
 
-        car_like_mobile_robot->getCurrentStateVariables();                   // 状態変数を取得
-        std::array<double, 2> u = car_like_mobile_robot->calcControlInput(); // 状態変数から制御入力を導出
-        car_like_mobile_robot->calcCommand(dt, u);                           // 制御入力を後輪回転角速度とステアリング角度に変換
-        car_like_mobile_robot->publishCommand();                             // 後輪回転角速度とステアリング角度をpublsih
+        car_like_mobile_robot->getCurrentStateVariables();                    // 状態変数を取得
+        std::array<double, 2> u = car_like_mobile_robot->calcControlInput(t); // 状態変数から制御入力を導出
+        car_like_mobile_robot->calcCommand(dt, u);                            // 制御入力を後輪回転角速度とステアリング角度に変換
+        car_like_mobile_robot->publishCommand();                              // 後輪回転角速度とステアリング角度をpublsih
 
         if (car_like_mobile_robot->isAtEndPoint) {
             break;

@@ -21,7 +21,7 @@ public:
     // Member functions
     void calcDesiredPathParams();
     void getCurrentStateVariables();
-    std::array<double, 2> calcControlInput();
+    std::array<double, 2> calcControlInput(double t);
     void calcCommand(double dt, const std::array<double, 2>& u); // 関数名要検討
     void publishCommand();
 
@@ -48,6 +48,11 @@ private:
         { 0.0,  8.0},
         { 8.0,  8.0}
     };
+    
+    // フィードバックゲイン
+    static constexpr double P11	= -3.0;
+    static constexpr double P12	= -4.0;
+    static constexpr double P13	= -2.0;
 
     // Member Variables
     // rclcpp::Subscriber true_state_variables_sub_;
@@ -56,7 +61,6 @@ private:
     struct BezierParameters {
         double q;            // ベジェ曲線パラメータ
         double s;            // 経路長
-        double d;            // 経路上の点Psと後輪間中点の距離
         double thetat;       // 点Psにおける接線方位角
         double c;            // 曲率
         double dcds;         // 曲率の一階微分
@@ -74,7 +78,7 @@ private:
     double s_, d_, thetat_;
     double v_;
 
-    double q_search_index_; // 前回の探索で見つけた最適な q のインデックス
+    int q_search_index_; // 前回の探索で見つけた最適なqのインデックス
 
     double fl_steering_angle_, fr_steering_angle_;
     double rl_linear_velocity_, rr_linear_velocity_;
@@ -98,6 +102,8 @@ private:
     void calcRqDiff(double q, double Rq[][2]);
     void calcRsDiff(double Rq[][2], double Rs[][2]);
     void calcCurvature(double Rs[][2], double curv[3]);
+
+    void findPs(double x, double y);
 
     // void truePositionCallback(const nav_msgs::Odometry::ConstPtr& msg);
     // void setCurrentPosition(double pos_x0, double pos_y0, double pos_th0);
