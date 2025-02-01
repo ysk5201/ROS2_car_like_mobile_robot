@@ -75,10 +75,9 @@ private:
 
     double pre_time_;
     double x_, y_, th_, phi_;
-    double s_, d_, thetat_;
-    double v_;
 
-    int q_search_index_; // 前回の探索で見つけた最適なqのインデックス
+    int q_search_index_;  // 前回の探索で見つけた最適なqのインデックス
+    bool is_full_search_; // Ps探索(全探索, 部分探索)
 
     double fl_steering_angle_, fr_steering_angle_;
     double rl_linear_velocity_, rr_linear_velocity_;
@@ -86,7 +85,6 @@ private:
     rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr front_steering_pub_;
     rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr rear_wheel_pub_;
     
-    bool is_full_search_; // Ps探索(全探索, 部分探索)
     
     // Member functions
     void initializeSubscribers();
@@ -105,16 +103,8 @@ private:
 
     void findPs(double x, double y);
 
-    // void truePositionCallback(const nav_msgs::Odometry::ConstPtr& msg);
-    // void setCurrentPosition(double pos_x0, double pos_y0, double pos_th0);
-    // void phiCallback(const std_msgs::Float64MultiArray::ConstPtr& msg);
-
     // double Sec(double a);
     // double Arctan(double a, double b);
-
-    // std::array<double, 2> calc_u(double t, double x, double y, double th, double phi);
-    // void calcBezierParam(double x, double y, double& s, double& d, double& thetat, double& c, double& dcds, double& d2cds2);
-    // double findPs(double x0, double y0);
 
     // void Runge(double t);
     // double f0(double x[RUNGE_DIM + 1]);  // t

@@ -7,8 +7,6 @@ CarLikeMobileRobot::CarLikeMobileRobot() : Node("car_like_mobile_robot"),
     Com_(N + 1, std::vector<long long>(N + 1, 0)),
     pre_time_(0.0),
     x_(0.0), y_(0.0), th_(0.0), phi_(0.0),
-	s_(0.0), d_(0.0), thetat_(0.0),
-	v_(0.0),
     q_search_index_(0.0), is_full_search_(true),
     fl_steering_angle_(0.0), fr_steering_angle_(0.0),
     rl_linear_velocity_(0.0), rr_linear_velocity_(0.0) {
@@ -105,7 +103,7 @@ std::array<double, 2> CarLikeMobileRobot::calcControlInput(double t) {
 void CarLikeMobileRobot::findPs(double x, double y) {
 
     // 後輪間中点とベジェ曲線との距離の最小値を無限大で初期化
-    double min = min = std::numeric_limits<double>::max();
+    double min = std::numeric_limits<double>::max();
 
     // 部分探索の基準点
     int start, stop;
