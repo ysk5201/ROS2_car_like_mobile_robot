@@ -21,6 +21,8 @@ private:
 
     rclcpp::Subscription<sensor_msgs::msg::Joy>::SharedPtr joy_sub_;
     rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmd_vel_pub_;
+    rclcpp::TimerBase::SharedPtr timer_;
+    rclcpp::Time pre_time_;
 };
 
 #endif  // JOY_TO_CMD_VEL_HPP_
