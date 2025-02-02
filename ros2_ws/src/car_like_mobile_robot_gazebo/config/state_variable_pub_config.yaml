@@ -1,0 +1,3 @@
+state_variable_pub:
+  ros__parameters:
+    publish_rate: 50.0  # タイマー周期（秒単位）
