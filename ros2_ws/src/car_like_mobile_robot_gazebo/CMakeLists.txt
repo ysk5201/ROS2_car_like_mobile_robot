@@ -10,12 +10,13 @@ find_package(ament_cmake REQUIRED)
 find_package(ros_gz_sim REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
-
+find_package(sensor_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
 include_directories(include)
 
 add_executable(state_variable_pub src/state_variable_pub.cpp)
 
-ament_target_dependencies(state_variable_pub rclcpp std_msgs)
+ament_target_dependencies(state_variable_pub rclcpp sensor_msgs geometry_msgs)
 
 install(
   DIRECTORY 
