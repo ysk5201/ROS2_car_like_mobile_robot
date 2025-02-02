@@ -2,6 +2,9 @@
 
 SubPubNode::SubPubNode() : Node("state_variable_pub"), x_(0.0), y_(0.0), theta_(0.0), phi_(0.0)
 {
+    this->declare_parameter<double>("publish_rate", 50.0);
+    double publish_rate = this->get_parameter("publish_rate").as_double();
+
     // サブスクライバーを作成
     ground_truth_sub_= this->create_subscription<geometry_msgs::msg::PoseArray>(
         "/ground_truth", 1,
@@ -12,11 +15,12 @@ SubPubNode::SubPubNode() : Node("state_variable_pub"), x_(0.0), y_(0.0), theta_(
         std::bind(&SubPubNode::jointStatesCallback, this, std::placeholders::_1));
 
     // パブリッシャーを作成
-    // publisher_ = this->create_publisher<std_msgs::msg::String>("/output_topic", 10);
+    state_variable_pub_ = this->create_publisher<std_msgs::msg::Float64MultiArray>("/state_variable", 1);
 
+    auto timer_period = std::chrono::duration<double>(1.0 / publish_rate);  //周期に変換
     // タイマーを作成（1秒ごとにパブリッシュ）
     timer_ = this->create_wall_timer(
-        std::chrono::seconds(1),
+        std::chrono::duration_cast<std::chrono::milliseconds>(timer_period),
         std::bind(&SubPubNode::timer_callback, this));
 }
 
@@ -44,9 +48,10 @@ void SubPubNode::jointStatesCallback(const sensor_msgs::msg::JointState::SharedP
 // タイマーのコールバック（定期的にパブリッシュ）
 void SubPubNode::timer_callback()
 {
-    
-    RCLCPP_INFO(this->get_logger(), "x:%.3f, y:%.3f, theta:%.3f, phi:%.3f", x_, y_, theta_, phi_);
-    // publisher_->publish(message);
+    auto message = std_msgs::msg::Float64MultiArray();
+    message.data = {x_, y_, theta_, phi_};  // 送信するデータ
+
+    state_variable_pub_->publish(message);
 }
 
 // メイン関数
