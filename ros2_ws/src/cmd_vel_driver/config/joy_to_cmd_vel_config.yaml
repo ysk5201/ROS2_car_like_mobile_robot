@@ -1,0 +1,4 @@
+joy_to_cmd_vel:
+  rosparameter:
+    linear_scale: 1.0
+    angular_scale: 1.0
