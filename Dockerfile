@@ -12,6 +12,7 @@ RUN apt-get update && \
         ros-jazzy-ros2-control \
         ros-jazzy-joint-state-broadcaster \
         ros-jazzy-ros2-controllers \
+        ros-jazzy-joy \
         x11-apps \
         git && \
     apt-get clean && rm -rf /var/lib/apt/lists/*

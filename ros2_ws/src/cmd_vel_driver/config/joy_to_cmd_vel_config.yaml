@@ -1,0 +1,7 @@
+joy_to_cmd_vel:
+  ros__parameters:  # ← 「ros__parameters」に修正
+    linear_max: 1.5
+    angular_max: 1.5
+    linear_acceleration: 1.5
+    angular_acceleration: 1.5
+    publish_rate: 50.0
