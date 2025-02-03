@@ -20,7 +20,25 @@ CarLikeMobileRobot::~CarLikeMobileRobot() {
 }
 
 void CarLikeMobileRobot::initializeSubscribers() {
-    // true_state_variables_sub_ = nh_.subscribe("/true_state_variables", 1, &CarLikeMobileRobot::truePositionCallback, this);
+    state_variables_sub_ = this->create_subscription<std_msgs::msg::Float64MultiArray>(
+        "/state_variable", 1,
+        std::bind(&CarLikeMobileRobot::stateVariablesCallback, this, std::placeholders::_1));
+}
+
+void CarLikeMobileRobot::stateVariablesCallback(const std_msgs::msg::Float64MultiArray::SharedPtr msg) {
+    if (msg->data.size() >= 4) { // データのサイズが最低限必要な要素数を満たしているか確認
+        x_   = msg->data[0];
+        y_   = msg->data[1];
+        th_  = msg->data[2];
+        phi_ = msg->data[3];
+    } else {
+        RCLCPP_WARN(this->get_logger(), "Received data is incomplete.");
+    }
+}
+
+void CarLikeMobileRobot::initializePublishers() {
+    front_steering_pub_  = this->create_publisher<std_msgs::msg::Float64MultiArray>("/front_steering_position_controller/commands", 1);
+    rear_wheel_pub_      = this->create_publisher<std_msgs::msg::Float64MultiArray>("/rear_wheel_speed_controller/commands", 1);
 }
 
 void CarLikeMobileRobot::calc_com() {
@@ -38,20 +56,14 @@ void CarLikeMobileRobot::calcDesiredPathParams() {
     calcBezierParameters(); // ベジェ曲線のパラメータを計算 & bezier_data_に格納
 }
 
-void CarLikeMobileRobot::getCurrentStateVariables() {
-    // コールバック関数
-    x_ = 0.0;
-    y_ = 0.0;
-    th_ = 0.0;
-    phi_ = 0.0;
-}
-
 std::array<double, 2> CarLikeMobileRobot::calcControlInput(double t) {
 
     double x = x_;
     double y = y_;
     double th = th_;
     double phi = phi_;
+
+    printf("x:%lf, y:%lf, th:%lf, phi:%lf, q:%d\n", x, y, th, phi, q_search_index_);
 
     findPs(x, y); // Ps探索を行いq_search_index_を更新
 
@@ -91,7 +103,8 @@ std::array<double, 2> CarLikeMobileRobot::calcControlInput(double t) {
     double z3 = (1-d*c)*tan(thetap);
     double z4 = d;
 
-    double w1 = 0.50 * sin(t) + 1.0; // 速度の定義[m/s]
+    // double w1 = 0.50 * sin(t) + 1.0; // 速度の定義[m/s]
+    double w1 = 0.5; // 速度の定義[m/s]
     double w2 = P11*abs(w1)*z2 + P12*w1*z3 + P13*abs(w1)*z4;
 
     double u1 = (1 - d*c) * w1 / cos(thetap);
@@ -484,13 +497,6 @@ void CarLikeMobileRobot::calcCurvature(double Rs[][2], double curv[3]) {
 //     return {t, x_, y_, th_, phi_, s_, d_, dd, th1_ - thetat_, thetap1d};
 // }
 
-
-
-void CarLikeMobileRobot::initializePublishers() {
-    front_steering_pub_  = this->create_publisher<std_msgs::msg::Float64MultiArray>("/front_steering_position_controller/commands", 1);
-    rear_wheel_pub_      = this->create_publisher<std_msgs::msg::Float64MultiArray>("/rear_wheel_speed_controller/commands", 1);
-}
-
 void CarLikeMobileRobot::publishSteeringAngles(double phi_l, double phi_r) {
     std_msgs::msg::Float64MultiArray msg;
     msg.data = {phi_l, phi_r};
@@ -531,7 +537,7 @@ int main(int argc, char **argv) {
         double t = (car_like_mobile_robot->now() - start_time).seconds();
         double dt = t - pre_t;
 
-        car_like_mobile_robot->getCurrentStateVariables();                    // 状態変数を取得
+        // car_like_mobile_robot->getCurrentStateVariables();                    // 状態変数を取得
         std::array<double, 2> u = car_like_mobile_robot->calcControlInput(t); // 状態変数から制御入力を導出
         car_like_mobile_robot->calcCommand(dt, u);                            // 制御入力を後輪回転角速度とステアリング角度に変換
         car_like_mobile_robot->publishCommand();                              // 後輪回転角速度とステアリング角度をpublsih

@@ -20,7 +20,7 @@ public:
 
     // Member functions
     void calcDesiredPathParams();
-    void getCurrentStateVariables();
+    // void getCurrentStateVariables();
     std::array<double, 2> calcControlInput(double t);
     void calcCommand(double dt, const std::array<double, 2>& u); // 関数名要検討
     void publishCommand();
@@ -55,7 +55,7 @@ private:
     static constexpr double P13	= -2.0;
 
     // Member Variables
-    // rclcpp::Subscriber true_state_variables_sub_;
+    rclcpp::Subscription<std_msgs::msg::Float64MultiArray>::SharedPtr state_variables_sub_;
     
     // ベジェ曲線の構造体を定義
     struct BezierParameters {
@@ -88,6 +88,8 @@ private:
     
     // Member functions
     void initializeSubscribers();
+    void stateVariablesCallback(const std_msgs::msg::Float64MultiArray::SharedPtr msg);
+
     void calc_com(); // 二項係数の計算を実行 & 配列に格納
 
     void calcBezierParameters(); // ベジェ曲線パラメータを計算する関数
