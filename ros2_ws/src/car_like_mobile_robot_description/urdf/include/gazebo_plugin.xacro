@@ -6,15 +6,20 @@
     <plugin filename="gz-sim-sensors-system" name="gz::sim::systems::Sensors">
       <render_engine>ogre2</render_engine>
     </plugin>
+
+    <plugin filename="libignition-gazebo-pose-publisher-system.so" name="gz::sim::systems::PosePublisher">
+      <publish_link_pose>false</publish_link_pose>
+      <publish_sensor_pose>true</publish_sensor_pose>
+      <publish_collision_pose>false</publish_collision_pose>
+      <publish_visual_pose>false</publish_visual_pose>
+      <publish_nested_model_pose>true</publish_nested_model_pose>
+      <use_pose_vector_msg>true</use_pose_vector_msg>
+      <!-- <static_publisher>true</static_publisher> -->
+      <static_update_frequency>30</static_update_frequency>
+    </plugin>
   </gazebo>
 
-  <plugin filename="libgazebo_ros_pose.so" name="gazebo_ros_pose">
-    <ros>
-      <namespace>/car_like_mobile_robot</namespace>
-      <remapping>pose:=odom</remapping>
-    </ros>
-    <update_rate>50</update_rate>
-  </plugin>
+  
 
   <!-- IMU PLUGIN  -->
   <!-- <gazebo reference="imu_link">
