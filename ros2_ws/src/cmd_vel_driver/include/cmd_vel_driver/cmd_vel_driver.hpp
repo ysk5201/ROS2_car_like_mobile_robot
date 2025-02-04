@@ -8,6 +8,7 @@
 #include <limits>
 #include <vector>
 #include <rclcpp/rclcpp.hpp>
+#include "geometry_msgs/msg/twist.hpp"
 #include <std_msgs/msg/float64_multi_array.hpp>
 
 
@@ -18,7 +19,6 @@ public:
     ~CmdVelDriver();
 
     // Member functions
-    void getCmdVel();
     void calcCommand(double dt);
     void publishCommand();
 
@@ -32,11 +32,10 @@ private:
     static constexpr double WHEEL_RADIUS = 0.3;    // 車輪半径(m) (URDFと統一)
 
     // Member Variables
-    // rclcpp::Subscriber true_state_variables_sub_;
+    rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr cmd_vel_sub_;
 
     double pre_time_;
     double linear_velocity_, angular_z_;
-    // double x_, y_, th_, phi_;
 
     double fl_steering_angle_, fr_steering_angle_;
     double rl_linear_velocity_, rr_linear_velocity_;
@@ -47,6 +46,7 @@ private:
     // Member functions
     void initializeSubscribers();
     void initializePublishers();
+    void cmdVelCallback(const geometry_msgs::msg::Twist::SharedPtr msg);
     void publishSteeringAngles(double phi_l, double phi_r);
     void publishWheelAngularVelocities(double omega_l, double omega_r);
 
