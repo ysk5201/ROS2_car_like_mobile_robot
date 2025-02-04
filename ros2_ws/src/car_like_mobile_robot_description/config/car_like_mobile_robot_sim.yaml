@@ -22,15 +22,42 @@ front_steering_position_controller:
     joints:
       - vehicle_front_left_steering_joint
       - vehicle_front_right_steering_joint
+    gains:
+      vehicle_front_left_steering_joint:
+        p: 1000.0
+        i: 0.01
+        d: 0.1
+      vehicle_front_right_steering_joint:
+        p: 1000.0
+        i: 0.01
+        d: 0.1
 
 rear_wheel_speed_controller:
   ros__parameters:
     joints:
       - vehicle_rear_left_joint
       - vehicle_rear_right_joint
+    gains:
+      vehicle_rear_left_joint:
+        p: 1000.0
+        i: 0.01
+        d: 0.1
+      vehicle_rear_right_joint:
+        p: 1000.0
+        i: 0.01
+        d: 0.1
 
 front_wheel_effort_controller:
   ros__parameters:
     joints:
       - vehicle_front_left_joint
       - vehicle_front_right_joint
+    gains:
+      vehicle_front_left_joint:
+        p: 0.0
+        i: 0.0
+        d: 0.0
+      vehicle_front_right_joint:
+        p: 0.0
+        i: 0.0
+        d: 0.0
