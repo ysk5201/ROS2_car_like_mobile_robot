@@ -6,13 +6,14 @@ RUN apt-get update && \
     apt-get install -y \
         software-properties-common \
         python3-colcon-common-extensions \
-        ros-jazzy-ros-gz \
         ros-jazzy-gz-ros2-control \
-        ros-jazzy-rviz2 \
-        ros-jazzy-ros2-control \
         ros-jazzy-joint-state-broadcaster \
-        ros-jazzy-ros2-controllers \
         ros-jazzy-joy \
+        ros-jazzy-ros-gz \
+        ros-jazzy-ros2-control \
+        ros-jazzy-ros2-controllers \
+        ros-jazzy-rqt-robot-steering \
+        ros-jazzy-rviz2 \
         x11-apps \
         git && \
     apt-get clean && rm -rf /var/lib/apt/lists/*

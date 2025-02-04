@@ -4,7 +4,6 @@
 CmdVelDriver::CmdVelDriver() : Node("cmd_vel_driver"),
     pre_time_(0.0),
     linear_velocity_(0.0), angular_z_(0.0),
-    // x_(0.0), y_(0.0), th_(0.0), phi_(0.0),
     fl_steering_angle_(0.0), fr_steering_angle_(0.0),
     rl_linear_velocity_(0.0), rr_linear_velocity_(0.0) {
     initializeSubscribers();
@@ -16,13 +15,14 @@ CmdVelDriver::~CmdVelDriver() {
 }
 
 void CmdVelDriver::initializeSubscribers() {
-    // true_state_variables_sub_ = nh_.subscribe("/true_state_variables", 1, &CmdVelDriver::truePositionCallback, this);
+    cmd_vel_sub_ = this->create_subscription<geometry_msgs::msg::Twist>(
+        "/cmd_vel", 1,
+        std::bind(&CmdVelDriver::cmdVelCallback, this, std::placeholders::_1));
 }
 
-void CmdVelDriver::getCmdVel() {
-    // コールバック関数
-    linear_velocity_ = 1.0;
-    angular_z_ = 0.5;
+void CmdVelDriver::cmdVelCallback(const geometry_msgs::msg::Twist::SharedPtr msg) {
+    linear_velocity_ = msg->linear.x;
+    angular_z_ = msg->angular.z;
 }
 
 void CmdVelDriver::calcCommand(double dt) {
@@ -53,12 +53,6 @@ void CmdVelDriver::publishCommand() {
     publishSteeringAngles(fl_steering_angle_, fr_steering_angle_);
     publishWheelAngularVelocities(rl_linear_velocity_, rr_linear_velocity_);
 }
-
-// std::vector<double> CmdVelDriver::getOutputVariables(double t) {
-// 	std::array<double, 2> form_closure_score = evaluateFormClosureScore(true_vehicle1_pos_, true_vehicle2_pos_, true_vehicle3_pos_);
-//     return {t, x_, y_, th_, phi_, s_, d_, dd, th1_ - thetat_, thetap1d};
-// }
-
 
 void CmdVelDriver::initializePublishers() {
     front_steering_pub_  = this->create_publisher<std_msgs::msg::Float64MultiArray>("/front_steering_position_controller/commands", 1);
@@ -93,9 +87,6 @@ int main(int argc, char **argv) {
         double t = (cmd_vel_driver->now() - start_time).seconds();
         double dt = t - pre_t;
 
-        // RCLCPP_INFO(cmd_vel_driver->get_logger(), "dt = %f", dt);
-
-        cmd_vel_driver->getCmdVel();      // cmd_velを取得
         cmd_vel_driver->calcCommand(dt);  // cmd_velを後輪回転角速度とステアリング角度に変換
         cmd_vel_driver->publishCommand(); // 後輪回転角速度とステアリング角度をpublsih
 

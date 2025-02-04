@@ -5,10 +5,10 @@ CarLikeMobileRobot::CarLikeMobileRobot() : Node("car_like_mobile_robot"),
     isAtEndPoint(false),
     bezier_data_(),
     Com_(N + 1, std::vector<long long>(N + 1, 0)),
-    pre_time_(0.0),
+    pre_time_(this->now()),
     x_(0.0), y_(0.0), th_(0.0), phi_(0.0),
-	s_(0.0), d_(0.0), thetat_(0.0),
-	v_(0.0),
+    future_phi_(0.0),
+	u_{},
     q_search_index_(0.0), is_full_search_(true),
     fl_steering_angle_(0.0), fr_steering_angle_(0.0),
     rl_linear_velocity_(0.0), rr_linear_velocity_(0.0) {
@@ -22,7 +22,25 @@ CarLikeMobileRobot::~CarLikeMobileRobot() {
 }
 
 void CarLikeMobileRobot::initializeSubscribers() {
-    // true_state_variables_sub_ = nh_.subscribe("/true_state_variables", 1, &CarLikeMobileRobot::truePositionCallback, this);
+    state_variables_sub_ = this->create_subscription<std_msgs::msg::Float64MultiArray>(
+        "/state_variable", 1,
+        std::bind(&CarLikeMobileRobot::stateVariablesCallback, this, std::placeholders::_1));
+}
+
+void CarLikeMobileRobot::stateVariablesCallback(const std_msgs::msg::Float64MultiArray::SharedPtr msg) {
+    if (msg->data.size() >= 4) { // データのサイズが最低限必要な要素数を満たしているか確認
+        x_   = msg->data[0];
+        y_   = msg->data[1];
+        th_  = msg->data[2];
+        phi_ = msg->data[3];
+    } else {
+        RCLCPP_WARN(this->get_logger(), "Received data is incomplete.");
+    }
+}
+
+void CarLikeMobileRobot::initializePublishers() {
+    front_steering_pub_  = this->create_publisher<std_msgs::msg::Float64MultiArray>("/front_steering_position_controller/commands", 1);
+    rear_wheel_pub_      = this->create_publisher<std_msgs::msg::Float64MultiArray>("/rear_wheel_speed_controller/commands", 1);
 }
 
 void CarLikeMobileRobot::calc_com() {
@@ -40,37 +58,112 @@ void CarLikeMobileRobot::calcDesiredPathParams() {
     calcBezierParameters(); // ベジェ曲線のパラメータを計算 & bezier_data_に格納
 }
 
-void CarLikeMobileRobot::getCurrentStateVariables() {
-    // コールバック関数
-    x_ = 0.0;
-    y_ = 0.0;
-    th_ = 0.0;
-    phi_ = 0.0;
-}
-
-std::array<double, 2> CarLikeMobileRobot::calcControlInput() {
+void CarLikeMobileRobot::calcControlInput(rclcpp::Time t) {
 
     double x = x_;
     double y = y_;
     double th = th_;
     double phi = phi_;
 
-	double fw1 = 0.2; // 速度の定義[m/s]
+    findPs(x, y); // Ps探索を行いq_search_index_を更新
 
-    double u1 = 1.0;
-    double u2 = 0.0;
+    double Rx    = bezier_data_[q_search_index_].Rx;
+    double Ry    = bezier_data_[q_search_index_].Ry;
+    double dRxdq = bezier_data_[q_search_index_].dRxdq;
+    double dRydq = bezier_data_[q_search_index_].dRydq;
 
-    return {u1, u2};
+	double dsdq = std::sqrt(std::pow(dRxdq, 2.0) + std::pow(dRydq, 2.0));
+
+	// 単位ベクトルeの(x, y)成分
+    double dRxds = dRxdq / dsdq;
+    double dRyds = dRydq / dsdq;
+
+	// 単位ベクトルn(e+90deg)の(x, y)成分
+	double nx = -dRyds;
+	double ny = dRxds;
+
+    double d      = (x - Rx) * nx + (y - Ry) * ny; // 経路上の点Ps,後輪間中点へのベクトルとeとの内積
+    double thetat = bezier_data_[q_search_index_].thetat;
+    double c      = bezier_data_[q_search_index_].c;
+    double dcds   = bezier_data_[q_search_index_].dcds;
+    double d2cds2 = bezier_data_[q_search_index_].d2cds2;
+
+    double thetap = th - thetat;
+    double sec = 1.0 / cos(thetap);
+
+    double alpha1 = (-d*std::pow(c,3.0)*tan(thetap)*(3*std::pow(WHEEL_BASE,2.0)*std::pow(sec,2.0)+ 9*d*WHEEL_BASE*std::pow(sec,3.0)*tan(phi)+3*std::pow(d,2.0)*std::pow(sec,4.0)*std::pow(tan(phi),2.0)+std::pow(WHEEL_BASE,2.0)*(2+3*std::pow(tan(thetap),2.0))) +
+                    std::pow(c,2.0)*tan(thetap)*(3*std::pow(WHEEL_BASE,2.0)*std::pow(sec,2.0)+18*d*WHEEL_BASE*std::pow(sec,3.0)*tan(phi)+9*std::pow(d,2.0)*std::pow(sec,4.0)*std::pow(tan(phi),2.0)+std::pow(WHEEL_BASE,2.0)*(2+3*std::pow(tan(thetap),2.0))) -
+                    WHEEL_BASE*(WHEEL_BASE*std::pow(sec,2.0)+3*d*std::pow(sec,3.0)*tan(phi)+2*WHEEL_BASE*std::pow(tan(thetap),2.0))*dcds +
+                    3*c*(-3*std::pow(sec,3.0)*tan(phi)*(WHEEL_BASE+d*sec*tan(phi))*tan(thetap) +
+                    d*WHEEL_BASE*(WHEEL_BASE*std::pow(sec,2.0)+d*std::pow(sec,3.0)*tan(phi)+WHEEL_BASE*std::pow(tan(thetap),2.0))*dcds)+tan(thetap)*(3*std::pow(sec,4.0)*std::pow(tan(phi),2.0)-d*std::pow(WHEEL_BASE,2.0)*d2cds2)) / std::pow(WHEEL_BASE,2.0);
+
+    double alpha2 = (std::pow(1 - c*d,2)*std::pow(1.0/cos(phi),2)*std::pow(sec,3))/WHEEL_BASE;
+
+    double z2 = -dcds*d*tan(thetap)-c*(1-d*c)*(1+std::pow(sin(thetap),2.0))/std::pow(cos(thetap),2.0)+std::pow(1-d*c,2.0)*tan(phi)/(WHEEL_BASE*std::pow(cos(thetap),3.0));
+    double z3 = (1-d*c)*tan(thetap);
+    double z4 = d;
+
+    // double w1 = 0.50 * sin(t) + 1.0; // 速度の定義[m/s]
+    double w1 = 0.2; // 速度の定義[m/s]
+    double w2 = P11*z2 + P12*z3 / w1 + P13*z4/(w1*w1);
+
+    // double w2 = P11*abs(w1)*z2 + P12*w1*z3 + P13*abs(w1)*z4;
+
+    double u1 = (1 - d*c) * w1 / cos(thetap);
+    double u2 = (w2-alpha1*w1)/alpha2;
+
+    u_[0] = u1;
+    u_[1] = u2;
 }
 
-void CarLikeMobileRobot::calcCommand(double dt, const std::array<double, 2>& u) {
+void CarLikeMobileRobot::findPs(double x, double y) {
 
-    double u1 = u[0];
-    double u2 = u[1];
+    // 後輪間中点とベジェ曲線との距離の最小値を無限大で初期化
+    double min = std::numeric_limits<double>::max();
 
-    double velocity = u1; // 後輪間中点の速度
+    // 部分探索の基準点
+    int start, stop;
+
+    if (is_full_search_) {
+        start = 0;
+        stop = Q_DIV_NUM;
+        is_full_search_ = false;  // 次回以降は部分探索
+    } else {
+        // 部分探索の範囲を設定
+        start = std::max(0, q_search_index_ - PARTIAL);
+        stop = std::min(Q_DIV_NUM, q_search_index_ + PARTIAL);
+    }
+
+	// Ps探索
+    for (int j = start; j <= stop; j++) {
+        double q = static_cast<double>(j) / Q_DIV_NUM;
+
+        // ベジェ曲線上の座標 R[0] (Rx), R[1] (Ry) を計算
+        double R[2] = {0.0, 0.0};
+        for (int i = 0; i <= N; i++) {
+            double weight = nCk(N, i) * std::pow(q, i) * std::pow(1 - q, N - i);
+            R[0] += weight * B[i][0];
+            R[1] += weight * B[i][1];
+        }
+
+        // 2乗距離を計算
+        double d = std::pow(x - R[0], 2.0) + std::pow(y - R[1], 2.0);
+        if (d < min) {
+            min = d;
+            q_search_index_ = j;
+        }
+    }
+}
+
+void CarLikeMobileRobot::calcCommand(double dt) {
+
+    double u1 = u_[0]; // 後輪間中点の速度
+    double u2 = u_[1]; // 前輪間中点におけるステアリング角速度
+
+    double velocity    = u1; // 後輪間中点の速度
     double current_phi = phi_;
-    double future_phi = current_phi + (u2 * dt); // 未来の前輪ステアリング角度
+    double future_phi  = future_phi_;
+    // double future_phi = current_phi + (u2 * dt); // 未来の前輪ステアリング角度
 
     double new_r = WHEEL_BASE / tan(future_phi); // 未来の旋回半径
     double phi_l = atan(WHEEL_BASE / (new_r - (0.5 * TREAD_WIDTH)));
@@ -94,14 +187,6 @@ void CarLikeMobileRobot::publishCommand() {
     publishWheelAngularVelocities(rl_linear_velocity_, rr_linear_velocity_);
 }
 
-// double CarLikeMobileRobot::Sec(double a) {
-//     return (1.0 / cos(a));
-// }
-
-// double CarLikeMobileRobot::Arctan(double a, double b) {
-//     return (atan2(b,a));
-// }
-
 void CarLikeMobileRobot::calcBezierParameters() {
     bezier_data_.clear(); // 以前のデータをクリア
     
@@ -111,7 +196,6 @@ void CarLikeMobileRobot::calcBezierParameters() {
         double q = static_cast<double>(j) / Q_DIV_NUM;
 
         BezierParameters params;
-        params.q = q;
 
         double Rq[5][2] = {};  // ベジェ曲線のqでの微分
         double Rs[5][2] = {};  // sでの微分
@@ -121,14 +205,21 @@ void CarLikeMobileRobot::calcBezierParameters() {
         calcRsDiff(Rq, Rs);
         calcCurvature(Rs, curv);
 
-        params.Rx = Rq[0][0];
-        params.Ry = Rq[0][1];
-        params.dRxdq = Rq[1][0];
-        params.dRydq = Rq[1][1];
+        double dsdq = std::sqrt(std::pow(Rq[1][0], 2.0) + std::pow(Rq[1][1], 2.0));
 
-        params.c = curv[0];
-        params.dcds = curv[1];
+        // 単位ベクトルeの(x, y)成分
+        double dRxds = Rq[1][0]/dsdq;
+        double dRyds = Rq[1][1]/dsdq;
+
+        params.q      = q;
+        params.thetat = atan2(dRyds, dRxds);
+        params.c      = curv[0];
+        params.dcds   = curv[1];
         params.d2cds2 = curv[2];
+        params.Rx     = Rq[0][0];
+        params.Ry     = Rq[0][1];
+        params.dRxdq  = Rq[1][0];
+        params.dRydq  = Rq[1][1];
 
         bezier_data_.push_back(params);
     }
@@ -138,10 +229,18 @@ void CarLikeMobileRobot::calcBezierParameters() {
     //bezier_data_にsを保存
     for (int j = 0; j <= Q_DIV_NUM; j++) {
         bezier_data_[j].s = s_values[j];
-        // printf("s=%lf\n", bezier_data_[j].s);
     }
 
-    RCLCPP_INFO(this->get_logger(), "Bezier curve length : %f", bezier_data_[Q_DIV_NUM].s);
+    RCLCPP_INFO(this->get_logger(), "q      : %f", bezier_data_[Q_DIV_NUM].q);
+    RCLCPP_INFO(this->get_logger(), "s      : %f", bezier_data_[Q_DIV_NUM].s);
+    RCLCPP_INFO(this->get_logger(), "thetat : %f", bezier_data_[Q_DIV_NUM].thetat);
+    RCLCPP_INFO(this->get_logger(), "c      : %f", bezier_data_[Q_DIV_NUM].c);
+    RCLCPP_INFO(this->get_logger(), "dcds   : %f", bezier_data_[Q_DIV_NUM].dcds);
+    RCLCPP_INFO(this->get_logger(), "d2cds2 : %f", bezier_data_[Q_DIV_NUM].d2cds2);
+    RCLCPP_INFO(this->get_logger(), "Rx     : %f", bezier_data_[Q_DIV_NUM].Rx);
+    RCLCPP_INFO(this->get_logger(), "Ry     : %f", bezier_data_[Q_DIV_NUM].Ry);
+    RCLCPP_INFO(this->get_logger(), "dRxdq  : %f", bezier_data_[Q_DIV_NUM].dRxdq);
+    RCLCPP_INFO(this->get_logger(), "dRydq  : %f", bezier_data_[Q_DIV_NUM].dRydq);
 }
 
 void CarLikeMobileRobot::calcArcLength(std::vector<double>& s_values) {
@@ -150,8 +249,8 @@ void CarLikeMobileRobot::calcArcLength(std::vector<double>& s_values) {
 	double s_x[3][S_DIM+1];
 	double s_x_old[S_DIM+1], s_x_new[S_DIM+1];
 
-	int     i, j, time;
-	long	n;
+	int  i, j;
+	long n;
     
 	for (int i = 0; i < S_DIM + 1; i ++ ) {
 		s_x_old[i] = 0.0;
@@ -194,12 +293,7 @@ void CarLikeMobileRobot::calcArcLength(std::vector<double>& s_values) {
 			s_q[i][3] = s_q[i][2] + 3.0 * s_r[i][3] - s_k[i][3] / 2.0;
 		}
 
-		time = j;
-		time = j - time;
-		
-		if (time == 0 ) {
-            s_values[j] = s_x_new[1];  // 計算した経路長を格納
-		}
+        s_values[j] = s_x_new[1];  // 計算した経路長を格納
 
 		for (i = 0 ; i < S_DIM+1 ; i++) {
 			s_x_old[i] = s_x_new[i];
@@ -305,183 +399,80 @@ void CarLikeMobileRobot::calcCurvature(double Rs[][2], double curv[3]) {
             + (Rs[4][1] + Rs[1][0] * std::pow(curv[0], 3) + 3 * Rs[1][1] * curv[0] * curv[1]) * Rs[1][0];
 }
 
-// void CarLikeMobileRobot::Runge(double t) {
 
-//     double k[RUNGE_DIM + 1][4], r[RUNGE_DIM + 1][4];
-//     static double q[RUNGE_DIM + 1][4];
-//     double x[3][RUNGE_DIM + 1];
-//     double x_old[RUNGE_DIM + 1], x_new[RUNGE_DIM + 1];
+void CarLikeMobileRobot::Runge(rclcpp::Time current_time) {
 
-// 	int i;
-// 	double dt = t - pre_time_;
+    double k[RUNGE_DIM + 1][4], r[RUNGE_DIM + 1][4];
+    static double q[RUNGE_DIM + 1][4];
+    double runge_x[3][RUNGE_DIM + 1];
+    double x_old[RUNGE_DIM + 1], x_new[RUNGE_DIM + 1];
 
-//     x_old[0]  = t;
-//     x_old[1]  = x_;
-//     x_old[2]  = y_;
-//     x_old[3]  = th_;
-//     x_old[4]  = phi_;
+	int i;
+	rclcpp::Duration dt_duration = current_time - pre_time_;
+    double dt = dt_duration.seconds();  // Duration を double に変換
 
-//     if (t == 0) {
-//         for (int i = 0; i < RUNGE_DIM + 1; ++i) {
-//             q[i][3] = 0.0;
-//         }
-//     }
+    x_old[0]  = current_time.seconds();
+    x_old[1]  = phi_;
 
-//     for (i = 0 ; i < RUNGE_DIM + 1 ; i++) {
-//         k[i][0] = dt * (this->*f[i])(x_old);
-//         r[i][0] = (k[i][0] - 2.0 * q[i][3]) / 2.0;
-//         x[0][i] = x_old[i] + r[i][0];
-//         q[i][0] = q[i][3] + 3.0 * r[i][0] - k[i][0] / 2.0;
-//     }
-//     for (i = 0 ; i < RUNGE_DIM + 1 ; i++) {
-//         k[i][1] = dt * (this->*f[i])(x[0]);
-//         r[i][1] = (1.0 - sqrt(0.5)) * (k[i][1] - q[i][0]);
-//         x[1][i] = x[0][i] + r[i][1];
-//         q[i][1] = q[i][0] + 3.0 * r[i][1] - (1.0 - sqrt(0.5)) * k[i][1];
-//     }
-//     for (i = 0 ; i < RUNGE_DIM + 1 ; i++) {
-//         k[i][2] = dt * (this->*f[i])(x[1]);
-//         r[i][2] = (1.0 + sqrt(0.5)) * (k[i][2] - q[i][1]);
-//         x[2][i] = x[1][i] + r[i][2];
-//         q[i][2] = q[i][1] + 3.0 * r[i][2] - (1.0 + sqrt(0.5)) * k[i][2];
-//     }
-//     for (i = 0 ; i < RUNGE_DIM + 1 ; i++) {
-//         k[i][3] = dt * (this->*f[i])(x[2]);
-//         r[i][3] = (k[i][3] - 2.0 * q[i][2]) / 6.0;
-//         x_new[i] = x[2][i] + r[i][3];
-//         q[i][3] = q[i][2] + 3.0 * r[i][3] - k[i][3] / 2.0;
-//     }
+    if (current_time.seconds() < 0.001) {
+        for (int i = 0; i < RUNGE_DIM + 1; ++i) {
+            q[i][3] = 0.0;
+        }
+    }
+    for (i = 0 ; i < RUNGE_DIM + 1 ; i++) {
+        k[i][0] = dt * (this->*f[i])(x_old);
+        r[i][0] = (k[i][0] - 2.0 * q[i][3]) / 2.0;
+        runge_x[0][i] = x_old[i] + r[i][0];
+        q[i][0] = q[i][3] + 3.0 * r[i][0] - k[i][0] / 2.0;
+    }
+    for (i = 0 ; i < RUNGE_DIM + 1 ; i++) {
+        k[i][1] = dt * (this->*f[i])(runge_x[0]);
+        r[i][1] = (1.0 - sqrt(0.5)) * (k[i][1] - q[i][0]);
+        runge_x[1][i] = runge_x[0][i] + r[i][1];
+        q[i][1] = q[i][0] + 3.0 * r[i][1] - (1.0 - sqrt(0.5)) * k[i][1];
+    }
+    for (i = 0 ; i < RUNGE_DIM + 1 ; i++) {
+        k[i][2] = dt * (this->*f[i])(runge_x[1]);
+        r[i][2] = (1.0 + sqrt(0.5)) * (k[i][2] - q[i][1]);
+        runge_x[2][i] = runge_x[1][i] + r[i][2];
+        q[i][2] = q[i][1] + 3.0 * r[i][2] - (1.0 + sqrt(0.5)) * k[i][2];
+    }
+    for (i = 0 ; i < RUNGE_DIM + 1 ; i++) {
+        k[i][3] = dt * (this->*f[i])(runge_x[2]);
+        r[i][3] = (k[i][3] - 2.0 * q[i][2]) / 6.0;
+        x_new[i] = runge_x[2][i] + r[i][3];
+        q[i][3] = q[i][2] + 3.0 * r[i][3] - k[i][3] / 2.0;
+    }
 
-//     // 計算結果をメンバ変数に代入
-// 	x_   = x_new[1];
-//     y_   = x_new[2];
-//     th_  = x_new[3];
-//     phi_ = x_new[4];
-// }
+    // 計算結果をメンバ変数に代入
+	// t_   = x_new[0];
+    future_phi_ = x_new[1];
+	
+    pre_time_ = current_time;
+}
 
-// double CarLikeMobileRobot::f0(double x[RUNGE_DIM + 1]) {
-// 	return(1.0);
-// }
+double CarLikeMobileRobot::f0(double x[RUNGE_DIM + 1]) {
+	return(1.0);
+}
 
 // double CarLikeMobileRobot::f1(double x[RUNGE_DIM + 1]) {
 // 	double u1 = u_[0];
-// 	double ret = u1 * cos(th_);
-// 	return(ret);
+// 	return u1 * cos(th_);
 // }
 
 // double CarLikeMobileRobot::f2(double x[RUNGE_DIM + 1]) {
-//     double u1 = u_[0];
-// 	double ret = u1 * sin(th_);
-// 	return(ret);
+// 	double u1 = u_[0];
+// 	return u1 * sin(th_);
 // }
 
 // double CarLikeMobileRobot::f3(double x[RUNGE_DIM + 1]) {
 // 	double u1 = u_[0];
-// 	double ret = u1 * tan(th_) / WHEEL_BASE;
-// 	return(ret);
+// 	return u1 * tan(phi_) / WHEEL_BASE;
 // }
 
-// double CarLikeMobileRobot::f4(double x[RUNGE_DIM + 1]) {
-//     double u2 = u_[1];
-// 	double ret = u2;
-// 	return(ret);
-// }
-
-// 後輪間中点の位置(x,y)を受け取ってベジェ曲線のs, d, thetat, c, dcds, d2cds2をそれぞれポインタで返す関数
-// void CarLikeMobileRobot::calcBezierParam(double x, double y, double& s, double& d, double& thetat, double& c, double& dcds, double& d2cds2) {
-
-// 	// Ps探索後の最適なqを保存
-//     double q = findPs(x, y);
-
-// 	if (q == 1) {
-// 		isAtEndPoint = true;
-// 	}
-
-//     // ROS_INFO("bezier_q %lf", q);
-
-// 	double Rq[5][2]={0}; // Rをqで(0~4回)微分した配列
-//     double Rs[5][2]={0}; // Rをsで(0~4回)微分した配列
-//     double curv[3]={0};  // 曲率cをsで(0~2回)微分した配列
-
-// 	calcRqDiff(q, Rq);      // ベジェ曲線R(q)のqでの(0~4階)微分プログラム
-// 	calcRsDiff(Rq, Rs);  // ベジェ曲線R(q)のsでの(0~4階)微分プログラム
-// 	calcCurvature(Rs, curv); // 曲率cのsでの(0~2階)微分プログラム
-
-// 	double dsdq = sqrt(std::pow(Rq[1][0], 2.0) + std::pow(Rq[1][1], 2.0));
-
-// 	// 単位ベクトルeの(x, y)成分
-//     double dRxds = Rq[1][0]/dsdq;
-//     double dRyds = Rq[1][1]/dsdq;
-
-// 	// 単位ベクトルn(e+90deg)の(x, y)成分
-// 	double nx = -dRyds;
-// 	double ny = dRxds;
-
-// 	// qに対応する経路長配列s_の行数を導出
-// 	int value = round(q * Q_DIV_NUM);
-
-//     s       = s_array_[value];                           // 経路長
-// 	d       = (x-Rq[0][0])*nx + (y-Rq[0][1])*ny; // 経路上の点Psと、後輪間中点へのベクトルとe、との内積をdとして返す
-//     thetat  = atan2(dRyds, dRxds);                 // 経路上の点Psにおける接線の方向角
-//     c       = curv[0];                             // 曲率c(s)
-//     dcds    = curv[1];                             // 曲率c(s)の一階微分
-//     d2cds2  = curv[2];                             // 曲率c(s)の二階微分
-// }
-
-// double CarLikeMobileRobot::findPs(double x, double y) {
-
-//     // 後輪間中点とベジェ曲線との距離の最小値を無限大で初期化
-//     double min = min = std::numeric_limits<double>::max();
-//     double save_q = 0.0; // 最適なベジェ曲線のパラメータq
-
-//     // 部分探索の基準点
-//     int start, stop;
-
-//     if (is_full_search_) {
-//         start = 0;
-//         stop = Q_DIV_NUM;
-//         is_full_search_ = false;  // 次回以降は部分探索
-//     } else {
-//         // 部分探索の範囲を設定
-//         start = std::max(0, q_search_index_ - PARTIAL);
-//         stop = std::min(Q_DIV_NUM, q_search_index_ + PARTIAL);
-//     }
-
-// 	// Ps探索
-//     for (int j = start; j <= stop; j++) {
-//         double q = static_cast<double>(j) / Q_DIV_NUM;
-
-//         // ベジェ曲線上の座標 R[0] (Rx), R[1] (Ry) を計算
-//         double R[2] = {0.0, 0.0};
-//         for (int i = 0; i <= N; i++) {
-//             double weight = nCk(N, i) * std::pow(q, i) * std::pow(1 - q, N - i);
-//             R[0] += weight * B[i][0];
-//             R[1] += weight * B[i][1];
-//         }
-
-//         // 2乗距離を計算
-//         double d = std::pow(x - R[0], 2.0) + std::pow(y - R[1], 2.0);
-//         if (d < min) {
-//             min = d;
-//             save_q = q;
-//             q_search_index_ = j;
-//         }
-//     }
-
-// 	return save_q;
-// }
-
-
-// std::vector<double> CarLikeMobileRobot::getOutputVariables(double t) {
-// 	std::array<double, 2> form_closure_score = evaluateFormClosureScore(true_vehicle1_pos_, true_vehicle2_pos_, true_vehicle3_pos_);
-//     return {t, x_, y_, th_, phi_, s_, d_, dd, th1_ - thetat_, thetap1d};
-// }
-
-
-
-void CarLikeMobileRobot::initializePublishers() {
-    front_steering_pub_  = this->create_publisher<std_msgs::msg::Float64MultiArray>("/front_steering_position_controller/commands", 1);
-    rear_wheel_pub_      = this->create_publisher<std_msgs::msg::Float64MultiArray>("/rear_wheel_speed_controller/commands", 1);
+double CarLikeMobileRobot::f4(double x[RUNGE_DIM + 1]) {
+	double u2 = u_[1];
+	return u2;
 }
 
 void CarLikeMobileRobot::publishSteeringAngles(double phi_l, double phi_r) {
@@ -495,6 +486,11 @@ void CarLikeMobileRobot::publishWheelAngularVelocities(double omega_l, double om
     msg.data = {omega_l, omega_r};
     rear_wheel_pub_->publish(msg);
 }
+
+// std::vector<double> CarLikeMobileRobot::getOutputVariables(double t) {
+// 	std::array<double, 2> form_closure_score = evaluateFormClosureScore(true_vehicle1_pos_, true_vehicle2_pos_, true_vehicle3_pos_);
+//     return {t, x_, y_, th_, phi_, s_, d_, dd, th1_ - thetat_, thetap1d};
+// }
 
 
 int main(int argc, char **argv) {
@@ -516,24 +512,22 @@ int main(int argc, char **argv) {
         return 0;
     }
 
-    rclcpp::Time start_time = car_like_mobile_robot->now();
-    double pre_t = 0.0;
+    // rclcpp::Time start_time = car_like_mobile_robot->now();
+    rclcpp::Time pre_t = car_like_mobile_robot->now();
 
     while (rclcpp::ok() && input == 's') {
 
-        double t = (car_like_mobile_robot->now() - start_time).seconds();
-        double dt = t - pre_t;
+        rclcpp::Time current_time = car_like_mobile_robot->now();
 
-        car_like_mobile_robot->getCurrentStateVariables();                   // 状態変数を取得
-        std::array<double, 2> u = car_like_mobile_robot->calcControlInput(); // 状態変数から制御入力を導出
-        car_like_mobile_robot->calcCommand(dt, u);                           // 制御入力を後輪回転角速度とステアリング角度に変換
-        car_like_mobile_robot->publishCommand();                             // 後輪回転角速度とステアリング角度をpublsih
+        rclcpp::Duration dt_duration = current_time - pre_t;
+        double dt = dt_duration.seconds();  // Duration を double に変換
 
-        if (car_like_mobile_robot->isAtEndPoint) {
-            break;
-        }
-
-        pre_t = t;
+        car_like_mobile_robot->calcControlInput(current_time); // 状態変数から制御入力を導出
+        car_like_mobile_robot->Runge(current_time);            // 未来のphiを更新
+        car_like_mobile_robot->calcCommand(dt);                // 制御入力を後輪回転角速度とステアリング角度に変換
+        car_like_mobile_robot->publishCommand();               // 後輪回転角速度とステアリング角度をpublsih
+        
+        pre_t = current_time;
 
         rclcpp::spin_some(car_like_mobile_robot);
         loop_rate.sleep();

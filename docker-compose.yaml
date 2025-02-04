@@ -5,9 +5,13 @@ services:
       dockerfile: Dockerfile
     image: ros2-test:latest               # docker-compose buildによって生成されるイメージ名
     container_name: ros2_test             # docker-compose upで生成されるコンテナ名
+    privileged: true                      # USB デバイスのアクセス許可
+    devices:
+      - "/dev/input/js0:/dev/input/js0"   # ジョイスティックデバイスをマウント
     volumes:
       - ./ros2_ws/src:/root/ros2_ws/src   # ローカルのros2_wsをコンテナ内にマウント
       - /tmp/.X11-unix:/tmp/.X11-unix:rw  # Xサーバを共有
+      - "/dev/input:/dev/input"           # 入力デバイスをコンテナに渡す
     environment:
       DISPLAY: host.docker.internal:0.0   # ホストのDISPLAYをコンテナに渡す
       QT_X11_NO_MITSHM: 1                 # Xサーバ共有制限の無効化
