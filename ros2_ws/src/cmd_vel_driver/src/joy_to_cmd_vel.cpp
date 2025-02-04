@@ -20,7 +20,7 @@ JoyToCmdVel::JoyToCmdVel() : Node("joy_to_cmd_vel") {
         "/joy", 1, std::bind(&JoyToCmdVel::joy_callback, this, std::placeholders::_1));
 
     // cmd_vel メッセージのパブリッシャー
-    cmd_vel_pub_ = this->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel_raw", 1);
+    cmd_vel_pub_ = this->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel", 1);
 
     auto timer_period = std::chrono::duration<double>(1.0 / publish_rate);   //周期に変換
     timer_ = this->create_wall_timer(
@@ -64,7 +64,7 @@ void JoyToCmdVel::update_cmd_vel() {
     twist.angular.z = current_angular_z_;
     cmd_vel_pub_->publish(twist);
 
-    RCLCPP_INFO(this->get_logger(), "cmd_vel: linear=%.2f, angular=%.2f", twist.linear.x, twist.angular.z);
+    // RCLCPP_INFO(this->get_logger(), "cmd_vel: linear=%.2f, angular=%.2f", twist.linear.x, twist.angular.z);
 
     pre_time_ = current_time;
 }
