@@ -27,7 +27,7 @@ private:
     double y_;
     double theta_;
     double phi_;
-    std::string latest_data_;
+    double wheel_base_;
 };
 
 #endif  // SUB_PUB_NODE_HPP_
