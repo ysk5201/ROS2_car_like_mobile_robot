@@ -21,8 +21,9 @@ public:
     // Member functions
     void calcDesiredPathParams();
     // void getCurrentStateVariables();
-    std::array<double, 2> calcControlInput(double t);
-    void calcCommand(double dt, const std::array<double, 2>& u); // 関数名要検討
+    void calcControlInput(rclcpp::Time t);
+    void Runge(rclcpp::Time t);
+    void calcCommand(double dt); // 関数名要検討
     void publishCommand();
 
     // Member variables
@@ -33,9 +34,9 @@ private:
     static constexpr int N = 3;                    // 3次ベジェ曲線
     static constexpr int S_DIM = 1;                // 経路長の数値積分の次元数
     static constexpr int Q_DIV_NUM = 100000;       // ベジェ曲線q[0,1]の分割数
-    // static constexpr int STATE_VARIABLE_DIM = 4;   // 車両型移動ロボットの状態変数
-    // static constexpr int RUNGE_DIM = 4;            // Runge()で計算する状態変数の数
-    static constexpr int PARTIAL = 50;             // 部分探索の範囲[q_search_index_ - PARTIAL, q_search_index_ + PARTIAL]
+    static constexpr int STATE_VARIABLE_DIM = 4;   // 車両型移動ロボットの状態変数
+    static constexpr int RUNGE_DIM = 1;            // Runge()で計算する状態変数の数
+    static constexpr int PARTIAL = 500;             // 部分探索の範囲[q_search_index_ - PARTIAL, q_search_index_ + PARTIAL]
     static constexpr double PI = 3.141592653589793;
     static constexpr double WHEEL_BASE = 1.0;      // 車軸間距離(m) (URDFと統一)
     static constexpr double TREAD_WIDTH = 0.856;   // 左右車輪間距離(m) (URDFと統一)
@@ -44,10 +45,16 @@ private:
     // 制御点を定義
     const double B[N + 1][2] = {
         { 0.0,  0.0},
-        { 8.0,  0.0},
-        { 0.0,  8.0},
-        { 8.0,  8.0}
+        { 5.0,  0.0},
+        { 5.0,  4.0},
+        { 10.0, 4.0}
     };
+    // const double B[N + 1][2] = {
+    //     { 0.0,  2.0},
+    //     { 2.0,  2.0},
+    //     { 5.0,  2.0},
+    //     { 8.0,  2.0}
+    // };
     
     // フィードバックゲイン
     static constexpr double P11	= -3.0;
@@ -73,8 +80,11 @@ private:
     
     std::vector<std::vector<long long>> Com_; // nCk(Com_[n][k])の値を格納(Com_[N + 1][N + 1])
 
-    double pre_time_;
+    rclcpp::Time pre_time_;
     double x_, y_, th_, phi_;
+    double future_phi_;
+
+    std::array<double, 2> u_; // 制御入力u1, u2
 
     int q_search_index_;  // 前回の探索で見つけた最適なqのインデックス
     bool is_full_search_; // Ps探索(全探索, 部分探索)
@@ -105,21 +115,17 @@ private:
 
     void findPs(double x, double y);
 
-    // double Sec(double a);
-    // double Arctan(double a, double b);
-
-    // void Runge(double t);
-    // double f0(double x[RUNGE_DIM + 1]);  // t
+    double f0(double x[RUNGE_DIM + 1]);  // t
     // double f1(double x[RUNGE_DIM + 1]);  // x
     // double f2(double x[RUNGE_DIM + 1]);  // y
     // double f3(double x[RUNGE_DIM + 1]);  // th
-    // double f4(double x[RUNGE_DIM + 1]);  // phi
-    // typedef double (CarLikeMobileRobot::*FUNC)(double*);
-    // FUNC f[RUNGE_DIM + 1] = {&CarLikeMobileRobot::f0,
-    //                         &CarLikeMobileRobot::f1,
-    //                         &CarLikeMobileRobot::f2,
-    //                         &CarLikeMobileRobot::f3,
-    //                         &CarLikeMobileRobot::f4,};
+    double f4(double x[RUNGE_DIM + 1]);  // phi
+    typedef double (CarLikeMobileRobot::*FUNC)(double*);
+    FUNC f[RUNGE_DIM + 1] = {&CarLikeMobileRobot::f0,
+                            // &CarLikeMobileRobot::f1,
+                            // &CarLikeMobileRobot::f2,
+                            // &CarLikeMobileRobot::f3,
+                            &CarLikeMobileRobot::f4,};
     
     void initializePublishers();
     void publishSteeringAngles(double phi_l, double phi_r);
