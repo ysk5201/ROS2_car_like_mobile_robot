@@ -22,6 +22,7 @@ install(
   DIRECTORY 
   launch
   config
+  worlds
   # state_variable_pub
   DESTINATION share/${PROJECT_NAME}
 )
