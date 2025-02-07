@@ -15,6 +15,7 @@ RUN apt-get update && \
         ros-jazzy-rqt-robot-steering \
         ros-jazzy-rviz2 \
         x11-apps \
+        xterm \
         git && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
