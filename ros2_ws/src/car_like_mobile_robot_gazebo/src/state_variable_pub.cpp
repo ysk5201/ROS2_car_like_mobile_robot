@@ -29,9 +29,9 @@ SubPubNode::SubPubNode() : Node("state_variable_pub"), x_(0.0), y_(0.0), theta_(
 // サブスクライバーのコールバック
 void SubPubNode::groundTruthCallback(const geometry_msgs::msg::PoseArray::SharedPtr msg)
 {
+    x_ = msg->poses[0].position.x;
+    y_ = msg->poses[0].position.y;
     theta_ = msg->poses[0].orientation.z;
-    x_ = msg->poses[0].position.x - 0.5 * wheel_base_ * cos(theta_);
-    y_ = msg->poses[0].position.y - 0.5 * wheel_base_ * sin(theta_);
 }
 
 //[0]:front_left_wheel_joint, [1]:front_right_wheel_joint

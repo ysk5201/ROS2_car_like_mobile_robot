@@ -1,7 +1,5 @@
 <robot name="car_like_mobile_robot" xmlns:xacro="http://ros.org/wiki/xacro">
 
-    <!-- <xacro:include filename="$(find cooperative_transportation_system_pkg)/xacro/cooperative_transportation_system.trans" />
-    <xacro:include filename="$(find cooperative_transportation_system_pkg)/xacro/gazebo_plugin.xacro" /> -->
     <xacro:include filename="$(find car_like_mobile_robot_description)/urdf/include/ros2_control.xacro" />
     <xacro:include filename="$(find car_like_mobile_robot_description)/urdf/include/gazebo_plugin.xacro" />
 
@@ -358,7 +356,7 @@
     <xacro:macro name="car_like_mobile_robot_macro" params="parent vehicle">
         <!-- vehicle body -->
         <joint name="${vehicle}_body_joint" type="fixed">
-            <origin xyz="0 0 ${center_of_vehicle_body_z}" rpy="0 0 0"/>
+            <origin xyz="${wheel_base_half_length} 0 ${center_of_vehicle_body_z}" rpy="0 0 0"/>
             <parent link="${parent}"/>
             <child  link="${vehicle}_body_link"/>
         </joint>
@@ -373,7 +371,7 @@
                 <geometry>
                     <box size="${vehicle_body_length} ${vehicle_body_width} ${vehicle_body_height}" />
                 </geometry>
-                <material name="gray" />
+                <material name="blue" />
             </visual>
             <collision>
                 <origin xyz="0 0 0" rpy="0 0 0" />
@@ -383,7 +381,7 @@
             </collision>
         </link>
         <gazebo reference="${vehicle}_body_link">
-            <material>Gazebo/BlueTransparent</material>
+            <material>Gazebo/Blue</material>
         </gazebo>
 
         <!-- steering and wheel -->
