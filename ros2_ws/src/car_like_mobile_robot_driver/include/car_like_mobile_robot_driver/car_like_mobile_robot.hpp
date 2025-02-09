@@ -20,11 +20,11 @@ public:
 
     // Member functions
     void calcDesiredPathParams();
-    // void getCurrentStateVariables();
-    void calcControlInput(rclcpp::Time t);
-    void Runge(rclcpp::Time t);
-    void calcCommand(double dt); // 関数名要検討
+    void calcControlInput(double t);
+    void Runge(double t, double dt);
+    void calcCommand(double dt);
     void publishCommand();
+    void publishDebugInfo(double t);
 
     // Member variables
     bool isAtEndPoint;
@@ -36,7 +36,7 @@ private:
     static constexpr int Q_DIV_NUM = 100000;       // ベジェ曲線q[0,1]の分割数
     static constexpr int STATE_VARIABLE_DIM = 4;   // 車両型移動ロボットの状態変数
     static constexpr int RUNGE_DIM = 1;            // Runge()で計算する状態変数の数
-    static constexpr int PARTIAL = 500;             // 部分探索の範囲[q_search_index_ - PARTIAL, q_search_index_ + PARTIAL]
+    static constexpr int PARTIAL = 500;            // 部分探索の範囲[q_search_index_ - PARTIAL, q_search_index_ + PARTIAL]
     static constexpr double PI = 3.141592653589793;
     static constexpr double WHEEL_BASE = 1.0;      // 車軸間距離(m) (URDFと統一)
     static constexpr double TREAD_WIDTH = 0.856;   // 左右車輪間距離(m) (URDFと統一)
@@ -49,12 +49,6 @@ private:
         { 5.0,  4.0},
         { 10.0, 4.0}
     };
-    // const double B[N + 1][2] = {
-    //     { 0.0,  2.0},
-    //     { 2.0,  2.0},
-    //     { 5.0,  2.0},
-    //     { 8.0,  2.0}
-    // };
     
     // フィードバックゲイン
     static constexpr double P11	= -3.0;
@@ -63,6 +57,9 @@ private:
 
     // Member Variables
     rclcpp::Subscription<std_msgs::msg::Float64MultiArray>::SharedPtr state_variables_sub_;
+    rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr front_steering_pub_;
+    rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr rear_wheel_pub_;
+    rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr debug_info_pub_;
     
     // ベジェ曲線の構造体を定義
     struct BezierParameters {
@@ -80,7 +77,6 @@ private:
     
     std::vector<std::vector<long long>> Com_; // nCk(Com_[n][k])の値を格納(Com_[N + 1][N + 1])
 
-    rclcpp::Time pre_time_;
     double x_, y_, th_, phi_;
     double future_phi_;
 
@@ -89,11 +85,10 @@ private:
     int q_search_index_;  // 前回の探索で見つけた最適なqのインデックス
     bool is_full_search_; // Ps探索(全探索, 部分探索)
 
+    double d_, thetap_;
+
     double fl_steering_angle_, fr_steering_angle_;
     double rl_linear_velocity_, rr_linear_velocity_;
-
-    rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr front_steering_pub_;
-    rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr rear_wheel_pub_;
     
     
     // Member functions
@@ -125,7 +120,7 @@ private:
                             // &CarLikeMobileRobot::f1,
                             // &CarLikeMobileRobot::f2,
                             // &CarLikeMobileRobot::f3,
-                            &CarLikeMobileRobot::f4,};
+                            &CarLikeMobileRobot::f4};
     
     void initializePublishers();
     void publishSteeringAngles(double phi_l, double phi_r);

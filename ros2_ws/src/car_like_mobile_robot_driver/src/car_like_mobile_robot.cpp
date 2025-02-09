@@ -5,11 +5,11 @@ CarLikeMobileRobot::CarLikeMobileRobot() : Node("car_like_mobile_robot"),
     isAtEndPoint(false),
     bezier_data_(),
     Com_(N + 1, std::vector<long long>(N + 1, 0)),
-    pre_time_(this->now()),
     x_(0.0), y_(0.0), th_(0.0), phi_(0.0),
     future_phi_(0.0),
 	u_{},
     q_search_index_(0.0), is_full_search_(true),
+	d_(0.0), thetap_(0.0),
     fl_steering_angle_(0.0), fr_steering_angle_(0.0),
     rl_linear_velocity_(0.0), rr_linear_velocity_(0.0) {
     initializeSubscribers();
@@ -39,8 +39,9 @@ void CarLikeMobileRobot::stateVariablesCallback(const std_msgs::msg::Float64Mult
 }
 
 void CarLikeMobileRobot::initializePublishers() {
-    front_steering_pub_  = this->create_publisher<std_msgs::msg::Float64MultiArray>("/front_steering_position_controller/commands", 1);
-    rear_wheel_pub_      = this->create_publisher<std_msgs::msg::Float64MultiArray>("/rear_wheel_speed_controller/commands", 1);
+    front_steering_pub_ = this->create_publisher<std_msgs::msg::Float64MultiArray>("/front_steering_position_controller/commands", 1);
+    rear_wheel_pub_     = this->create_publisher<std_msgs::msg::Float64MultiArray>("/rear_wheel_speed_controller/commands", 1);
+    debug_info_pub_     = this->create_publisher<std_msgs::msg::Float64MultiArray>("/debug_info", 1);
 }
 
 void CarLikeMobileRobot::calc_com() {
@@ -58,7 +59,7 @@ void CarLikeMobileRobot::calcDesiredPathParams() {
     calcBezierParameters(); // ベジェ曲線のパラメータを計算 & bezier_data_に格納
 }
 
-void CarLikeMobileRobot::calcControlInput(rclcpp::Time t) {
+void CarLikeMobileRobot::calcControlInput(double t) {
 
     double x = x_;
     double y = y_;
@@ -112,8 +113,10 @@ void CarLikeMobileRobot::calcControlInput(rclcpp::Time t) {
     double u1 = (1 - d*c) * w1 / cos(thetap);
     double u2 = (w2-alpha1*w1)/alpha2;
 
-    u_[0] = u1;
-    u_[1] = u2;
+    u_[0]   = u1;
+    u_[1]   = u2;
+    d_      = d;
+    thetap_ = thetap;
 }
 
 void CarLikeMobileRobot::findPs(double x, double y) {
@@ -185,6 +188,14 @@ void CarLikeMobileRobot::calcCommand(double dt) {
 void CarLikeMobileRobot::publishCommand() {
     publishSteeringAngles(fl_steering_angle_, fr_steering_angle_);
     publishWheelAngularVelocities(rl_linear_velocity_, rr_linear_velocity_);
+}
+
+void CarLikeMobileRobot::publishDebugInfo(double t) {
+    std_msgs::msg::Float64MultiArray msg;
+    double u1 = u_[0];
+    double u2 = u_[1];
+    msg.data = {t, x_, y_, th_, phi_, u1, u2, d_, thetap_};
+    debug_info_pub_->publish(msg);
 }
 
 void CarLikeMobileRobot::calcBezierParameters() {
@@ -400,7 +411,7 @@ void CarLikeMobileRobot::calcCurvature(double Rs[][2], double curv[3]) {
 }
 
 
-void CarLikeMobileRobot::Runge(rclcpp::Time current_time) {
+void CarLikeMobileRobot::Runge(double t, double dt) {
 
     double k[RUNGE_DIM + 1][4], r[RUNGE_DIM + 1][4];
     static double q[RUNGE_DIM + 1][4];
@@ -408,13 +419,11 @@ void CarLikeMobileRobot::Runge(rclcpp::Time current_time) {
     double x_old[RUNGE_DIM + 1], x_new[RUNGE_DIM + 1];
 
 	int i;
-	rclcpp::Duration dt_duration = current_time - pre_time_;
-    double dt = dt_duration.seconds();  // Duration を double に変換
 
-    x_old[0]  = current_time.seconds();
+    x_old[0]  = t;
     x_old[1]  = phi_;
 
-    if (current_time.seconds() < 0.001) {
+    if (t < 0.001) {
         for (int i = 0; i < RUNGE_DIM + 1; ++i) {
             q[i][3] = 0.0;
         }
@@ -448,7 +457,6 @@ void CarLikeMobileRobot::Runge(rclcpp::Time current_time) {
 	// t_   = x_new[0];
     future_phi_ = x_new[1];
 	
-    pre_time_ = current_time;
 }
 
 double CarLikeMobileRobot::f0(double x[RUNGE_DIM + 1]) {
@@ -487,12 +495,6 @@ void CarLikeMobileRobot::publishWheelAngularVelocities(double omega_l, double om
     rear_wheel_pub_->publish(msg);
 }
 
-// std::vector<double> CarLikeMobileRobot::getOutputVariables(double t) {
-// 	std::array<double, 2> form_closure_score = evaluateFormClosureScore(true_vehicle1_pos_, true_vehicle2_pos_, true_vehicle3_pos_);
-//     return {t, x_, y_, th_, phi_, s_, d_, dd, th1_ - thetat_, thetap1d};
-// }
-
-
 int main(int argc, char **argv) {
     rclcpp::init(argc, argv);
 
@@ -512,20 +514,22 @@ int main(int argc, char **argv) {
         return 0;
     }
 
-    // rclcpp::Time start_time = car_like_mobile_robot->now();
-    rclcpp::Time pre_t = car_like_mobile_robot->now();
+    rclcpp::Time start_time = car_like_mobile_robot->now();
+    double pre_t = 0.0;
 
     while (rclcpp::ok() && input == 's') {
 
-        rclcpp::Time current_time = car_like_mobile_robot->now();
+        rclcpp::Time ros_t = car_like_mobile_robot->now();
+        double current_time = (ros_t - start_time).seconds();
 
-        rclcpp::Duration dt_duration = current_time - pre_t;
-        double dt = dt_duration.seconds();  // Duration を double に変換
+        double dt = current_time - pre_t;
 
         car_like_mobile_robot->calcControlInput(current_time); // 状態変数から制御入力を導出
-        car_like_mobile_robot->Runge(current_time);            // 未来のphiを更新
+        car_like_mobile_robot->Runge(current_time, dt);        // 未来のphiを更新
         car_like_mobile_robot->calcCommand(dt);                // 制御入力を後輪回転角速度とステアリング角度に変換
         car_like_mobile_robot->publishCommand();               // 後輪回転角速度とステアリング角度をpublsih
+        
+        car_like_mobile_robot->publishDebugInfo(current_time); // publishLogTopic
         
         pre_t = current_time;
 
