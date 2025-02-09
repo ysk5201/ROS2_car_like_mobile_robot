@@ -37,12 +37,16 @@ void DataLogger::debugInfoCallback(const std_msgs::msg::Float64MultiArray::Share
     return;
   }
   
-  data_file_  << msg->data[0] << ", "   //x
-              << msg->data[1] << ", "   //y
-              << msg->data[2] << ", "   //theta
-              << msg->data[3] << ", "   //phi
-              << msg->data[4] << ", "   //u1
-              << msg->data[5] << "\n";  //u2
+  data_file_  << msg->data[0] << ", "   //t
+              << msg->data[1] << ", "   //x
+              << msg->data[2] << ", "   //y
+              << msg->data[3] << ", "   //theta
+              << msg->data[4] << ", "   //phi
+              << msg->data[5] << ", "   //u1
+              << msg->data[6] << ", "   //u2
+              << msg->data[7] << ", "   //q
+              << msg->data[8] << ", "   //d
+              << msg->data[9] << "\n";  //thetap
   data_file_.flush();
 }
 
