@@ -194,7 +194,8 @@ void CarLikeMobileRobot::publishDebugInfo(double t) {
     std_msgs::msg::Float64MultiArray msg;
     double u1 = u_[0];
     double u2 = u_[1];
-    msg.data = {t, x_, y_, th_, phi_, u1, u2, d_, thetap_};
+    double q  = bezier_data_[q_search_index_].q;
+    msg.data = {t, x_, y_, th_, phi_, u1, u2, q, d_, thetap_};
     debug_info_pub_->publish(msg);
 }
 
