@@ -18,14 +18,8 @@ public:
     CmdVelDriver();
     ~CmdVelDriver();
 
-    // Member functions
-    void calcCommand(double dt);
-    void publishCommand();
-
 private:
     // constants
-    // static constexpr int STATE_VARIABLE_DIM = 4;   // 車両型移動ロボットの状態変数
-    // static constexpr int RUNGE_DIM = 4;            // Runge()で計算する状態変数の数
     static constexpr double PI = 3.141592653589793;
     static constexpr double WHEEL_BASE = 1.0;      // 車軸間距離(m) (URDFと統一)
     static constexpr double TREAD_WIDTH = 0.856;   // 左右車輪間距離(m) (URDFと統一)
@@ -34,7 +28,6 @@ private:
     // Member Variables
     rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr cmd_vel_sub_;
 
-    double pre_time_;
     double linear_velocity_, angular_z_;
 
     double fl_steering_angle_, fr_steering_angle_;
@@ -47,6 +40,8 @@ private:
     void initializeSubscribers();
     void initializePublishers();
     void cmdVelCallback(const geometry_msgs::msg::Twist::SharedPtr msg);
+    void calcCommand();
+    void publishCommand();
     void publishSteeringAngles(double phi_l, double phi_r);
     void publishWheelAngularVelocities(double omega_l, double omega_r);
 
