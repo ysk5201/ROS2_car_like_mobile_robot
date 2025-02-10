@@ -3,6 +3,9 @@
 **/install/
 **/log/
 
+# debug_file
+**/log_files
+
 ### VisualStudioCode ###
 .vscode/
 !.vscode/settings.json
