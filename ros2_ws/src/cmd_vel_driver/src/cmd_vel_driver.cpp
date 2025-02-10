@@ -19,9 +19,16 @@ void CmdVelDriver::initializeSubscribers() {
         std::bind(&CmdVelDriver::cmdVelCallback, this, std::placeholders::_1));
 }
 
+void CmdVelDriver::initializePublishers() {
+    front_steering_pub_  = this->create_publisher<std_msgs::msg::Float64MultiArray>("/front_steering_position_controller/commands", 1);
+    rear_wheel_pub_      = this->create_publisher<std_msgs::msg::Float64MultiArray>("/rear_wheel_speed_controller/commands", 1);
+}
+
 void CmdVelDriver::cmdVelCallback(const geometry_msgs::msg::Twist::SharedPtr msg) {
     linear_velocity_ = msg->linear.x;
     angular_z_ = msg->angular.z;
+    calcCommand();
+    publishCommand();
 }
 
 void CmdVelDriver::calcCommand() {
@@ -56,11 +63,6 @@ void CmdVelDriver::publishCommand() {
     publishWheelAngularVelocities(rl_linear_velocity_, rr_linear_velocity_);
 }
 
-void CmdVelDriver::initializePublishers() {
-    front_steering_pub_  = this->create_publisher<std_msgs::msg::Float64MultiArray>("/front_steering_position_controller/commands", 1);
-    rear_wheel_pub_      = this->create_publisher<std_msgs::msg::Float64MultiArray>("/rear_wheel_speed_controller/commands", 1);
-}
-
 void CmdVelDriver::publishSteeringAngles(double phi_l, double phi_r) {
     std_msgs::msg::Float64MultiArray msg;
     msg.data = {phi_l, phi_r};
@@ -75,20 +77,7 @@ void CmdVelDriver::publishWheelAngularVelocities(double omega_l, double omega_r)
 
 int main(int argc, char **argv) {
     rclcpp::init(argc, argv);
-
-    auto cmd_vel_driver = std::make_shared<CmdVelDriver>();
-
-    rclcpp::Rate loop_rate(50);
-
-    while (rclcpp::ok()) {
-
-        cmd_vel_driver->calcCommand();    // cmd_velを後輪回転角速度とステアリング角度に変換
-        cmd_vel_driver->publishCommand(); // 後輪回転角速度とステアリング角度をpublsih
-
-        rclcpp::spin_some(cmd_vel_driver);
-        loop_rate.sleep();
-    }
-
+    rclcpp::spin(std::make_shared<CmdVelDriver>());
     rclcpp::shutdown();
     return 0;
 }

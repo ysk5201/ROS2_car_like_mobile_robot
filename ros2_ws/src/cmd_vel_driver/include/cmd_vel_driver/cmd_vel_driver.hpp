@@ -18,10 +18,6 @@ public:
     CmdVelDriver();
     ~CmdVelDriver();
 
-    // Member functions
-    void calcCommand();
-    void publishCommand();
-
 private:
     // constants
     static constexpr double PI = 3.141592653589793;
@@ -44,6 +40,8 @@ private:
     void initializeSubscribers();
     void initializePublishers();
     void cmdVelCallback(const geometry_msgs::msg::Twist::SharedPtr msg);
+    void calcCommand();
+    void publishCommand();
     void publishSteeringAngles(double phi_l, double phi_r);
     void publishWheelAngularVelocities(double omega_l, double omega_r);
 
