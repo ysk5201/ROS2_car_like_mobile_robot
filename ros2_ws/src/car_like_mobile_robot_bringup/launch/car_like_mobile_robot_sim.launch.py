@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 import os
+import yaml
+
 
 from launch import LaunchDescription
 from launch.actions import IncludeLaunchDescription,TimerAction
@@ -7,20 +9,32 @@ from launch.launch_description_sources import PythonLaunchDescriptionSource
 from ament_index_python.packages import get_package_share_directory
 from launch_ros.actions import Node
 
+from car_like_mobile_robot_bringup import generate_bezier_box
+
+
 def generate_launch_description():
     # 各パッケージのディレクトリを取得
     car_like_mobile_robot_gazebo_share_dir = os.path.join(get_package_share_directory('car_like_mobile_robot_gazebo'))
-    car_like_mobile_robot_driver_share_dir = os.path.join(get_package_share_directory('car_like_mobile_robot_driver'))
+    car_like_mobile_robot_bringup_share_dir = os.path.join(get_package_share_directory('car_like_mobile_robot_bringup'))
+        
+    #共通パラメータファイルのパス
+    common_param_file_path = os.path.join(car_like_mobile_robot_bringup_share_dir, 'config', 'common_param.yaml')
+    # YAMLファイルを読み込み、辞書型に変換
+    with open(common_param_file_path, 'r') as file:
+        params = yaml.safe_load(file)
 
+    points = params.get('ros__parameters', {}).get('control_points', [])
+    print("Loaded points:", points)
 
-    # IncludeLaunchDescription で他パッケージの launch ファイルを含める
-    # include_my_pkg_launch = IncludeLaunchDescription(
-    #     PythonLaunchDescriptionSource(my_pkg_launch_file)
-    # )
+    #ワールドファイルの作成
+    world_file_name = 'bezier_box.sdf'
+    world_file_path = os.path.join(car_like_mobile_robot_gazebo_share_dir, 'worlds', world_file_name)
+    generate_bezier_box.create_world(points,filename=world_file_path)
 
     car_like_mobile_robot_gazebo = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([os.path.join(
             car_like_mobile_robot_gazebo_share_dir, 'launch'), '/car_like_mobile_robot_gazebo.launch.py']),
+        launch_arguments={'world': world_file_name}.items()
     )
 
     state_variable_pub_node = Node(

@@ -187,12 +187,7 @@ def create_world_file(output_filename, models, view_point_x, view_point_y, view_
     with open(output_filename, mode='w') as file:
         file.write(WORLD_TEMPLATE.format(models=models, view_point_x=view_point_x, view_point_y=view_point_y, view_point_z=view_point_z))
 
-def main():
-    # Bézier曲線の制御点
-    control_points = [(0, 0), (5.0, 0.0), (5.0, 4.0), (10.0, 4.0)]
-
-    # 経路用に使う直方体の数
-    num_points = 100
+def create_world(control_points, num_points = 100,filename = "bezier_box.sdf"):
 
     # 経路用に使う直方体のパラメータ
     length = 0.24
@@ -206,16 +201,45 @@ def main():
 
     # Bézier曲線を生成
     coordinates = bezier_curve(control_points, num_points)
-
+    
     # モデルを生成
     models = generate_models(coordinates, length, width, height)
 
-    # worldファイルを生成
-    filename = "bezier_box.sdf"
     create_world_file(filename, models, view_point_x, view_point_y, view_point_z)
 
     print(f"Worldファイルが生成されました: {filename}")
 
-if __name__ == "__main__":
-    main()
+
+
+# def main():
+#     # Bézier曲線の制御点
+#     control_points = [(0, 0), (5.0, 0.0), (5.0, 4.0), (10.0, 4.0)]
+
+#     # 経路用に使う直方体の数
+#     num_points = 100
+
+#     # 経路用に使う直方体のパラメータ
+#     length = 0.24
+#     width = 0.05
+#     height = 0.0005
+
+#     # 視点位置
+#     view_point_x = 4
+#     view_point_y = 3
+#     view_point_z = 12
+
+#     # Bézier曲線を生成
+#     coordinates = bezier_curve(control_points, num_points)
+
+#     # モデルを生成
+#     models = generate_models(coordinates, length, width, height)
+
+#     # worldファイルを生成
+#     filename = "bezier_box.sdf"
+#     create_world_file(filename, models, view_point_x, view_point_y, view_point_z)
+
+#     print(f"Worldファイルが生成されました: {filename}")
+
+# if __name__ == "__main__":
+#     main()
 
