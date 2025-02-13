@@ -19,7 +19,7 @@ def generate_launch_description():
 
     # Launch Arguments
     arguments = LaunchDescription([
-                DeclareLaunchArgument('world', default_value='empty',
+                DeclareLaunchArgument('world', default_value='empty.sdf',
                           description='Gz sim World'),
            ]
     )
@@ -44,7 +44,6 @@ def generate_launch_description():
             get_package_share_directory('ros_gz_sim'), 'launch'), '/gz_sim.launch.py']),
         launch_arguments=[
             ('gz_args', [LaunchConfiguration('world'),
-                            '.sdf',    #worldの拡張子
                             # ' -v 4',   #ログを表示する
                             ' -r']     #起動時にシミュレーションを開始する
             )

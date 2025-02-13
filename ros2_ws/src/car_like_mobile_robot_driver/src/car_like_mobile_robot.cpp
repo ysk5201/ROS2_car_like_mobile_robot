@@ -11,15 +11,47 @@ CarLikeMobileRobot::CarLikeMobileRobot() : Node("car_like_mobile_robot"),
 	u_{},
     q_search_index_(0.0), is_full_search_(true),
     fl_steering_angle_(0.0), fr_steering_angle_(0.0),
-    rl_linear_velocity_(0.0), rr_linear_velocity_(0.0) {
+    rl_linear_velocity_(0.0), rr_linear_velocity_(0.0) 
+{   
+    initParams(); 
     initializeSubscribers();
     initializePublishers();
     calc_com();
 }
 
+void CarLikeMobileRobot::initParams() {
+    //デフォルトパラメータの設定
+    this->declare_parameter<std::vector<double>>("control_points", { 0.0,  0.0, 5.0,  0.0, 5.0,  4.0, 10.0, 4.0});
+    std::vector<double> serialized_control_points;
+    std::vector<std::array<double,2>> control_points;   //制御点
+
+    //制御点の取得
+    if (this->get_parameter("control_points", serialized_control_points)) {
+        if (serialized_control_points.size() % 2 != 0) {
+            RCLCPP_ERROR(this->get_logger(), "points パラメータは偶数個の要素である必要があります");
+            return;
+          }
+          // 1次元を二次元に復元
+          for (size_t i = 0; i < serialized_control_points.size(); i += 2) {
+            double x = serialized_control_points[i];
+            double y = serialized_control_points[i + 1];
+            
+            std::array<double,2>point = {x,y};
+            control_points.push_back(point);
+        }
+
+    } else {
+        RCLCPP_WARN(this->get_logger(), "Failed to get parameter 'my_array'");
+    }
+
+    B = control_points;
+
+}
+
 CarLikeMobileRobot::~CarLikeMobileRobot() {
     RCLCPP_INFO(this->get_logger(), "CarLikeMobileRobot Node Shutting Down.");
 }
+
 
 void CarLikeMobileRobot::initializeSubscribers() {
     state_variables_sub_ = this->create_subscription<std_msgs::msg::Float64MultiArray>(
