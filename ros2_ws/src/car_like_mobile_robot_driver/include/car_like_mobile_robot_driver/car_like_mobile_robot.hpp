@@ -43,18 +43,8 @@ private:
     static constexpr double WHEEL_RADIUS = 0.3;    // 車輪半径(m) (URDFと統一)
 
     // 制御点を定義
-    const double B[N + 1][2] = {
-        { 0.0,  0.0},
-        { 5.0,  0.0},
-        { 5.0,  4.0},
-        { 10.0, 4.0}
-    };
-    // const double B[N + 1][2] = {
-    //     { 0.0,  2.0},
-    //     { 2.0,  2.0},
-    //     { 5.0,  2.0},
-    //     { 8.0,  2.0}
-    // };
+    std::vector<std::array<double,2>> B;
+
     
     // フィードバックゲイン
     static constexpr double P11	= -3.0;
@@ -97,6 +87,7 @@ private:
     
     
     // Member functions
+    void initParams();
     void initializeSubscribers();
     void stateVariablesCallback(const std_msgs::msg::Float64MultiArray::SharedPtr msg);
 

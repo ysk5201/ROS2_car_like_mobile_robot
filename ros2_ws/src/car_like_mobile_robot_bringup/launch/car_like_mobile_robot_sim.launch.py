@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import os
 import yaml
-
+from itertools import chain
 
 from launch import LaunchDescription
 from launch.actions import IncludeLaunchDescription,TimerAction
@@ -16,20 +16,20 @@ def generate_launch_description():
     # 各パッケージのディレクトリを取得
     car_like_mobile_robot_gazebo_share_dir = os.path.join(get_package_share_directory('car_like_mobile_robot_gazebo'))
     car_like_mobile_robot_bringup_share_dir = os.path.join(get_package_share_directory('car_like_mobile_robot_bringup'))
-        
+
     #共通パラメータファイルのパス
     common_param_file_path = os.path.join(car_like_mobile_robot_bringup_share_dir, 'config', 'common_param.yaml')
     # YAMLファイルを読み込み、辞書型に変換
     with open(common_param_file_path, 'r') as file:
         params = yaml.safe_load(file)
 
-    points = params.get('ros__parameters', {}).get('control_points', [])
-    print("Loaded points:", points)
+    control_points = params.get('ros__parameters', {}).get('control_points', [])
+    
 
     #ワールドファイルの作成
     world_file_name = 'bezier_box.sdf'
     world_file_path = os.path.join(car_like_mobile_robot_gazebo_share_dir, 'worlds', world_file_name)
-    generate_bezier_box.create_world(points,filename=world_file_path)
+    generate_bezier_box.create_world(control_points,filename=world_file_path)
 
     car_like_mobile_robot_gazebo = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([os.path.join(
@@ -43,12 +43,15 @@ def generate_launch_description():
         name='state_variable_pub',
     )
 
+    serialized_control_points = list(chain(*control_points))    #二次元配列を一次元化
+    
     driver_node = Node(
         package='car_like_mobile_robot_driver',
         executable='car_like_mobile_robot',
         name='car_like_mobile_robot',
         output='screen',
-        prefix='xterm -e' #別ターミナルを起動
+        prefix='xterm -e', #別ターミナルを起動
+        parameters = [{'control_points': serialized_control_points}],
     )
 
     return LaunchDescription([
