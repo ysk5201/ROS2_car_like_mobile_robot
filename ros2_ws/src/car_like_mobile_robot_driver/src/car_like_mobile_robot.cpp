@@ -43,6 +43,7 @@ void CarLikeMobileRobot::initParams() {
     }
 
     B = control_points;
+    N = B.size()-1;
 
 }
 
@@ -77,7 +78,7 @@ void CarLikeMobileRobot::calcDesiredPathParams() {
     calcBezierParameters(); // ベジェ曲線のパラメータを計算 & bezier_data_に格納
 }
 
-void CarLikeMobileRobot::calcControlInput(rclcpp::Time t) {
+void CarLikeMobileRobot::calcControlInput() {
 
     double x = x_;
     double y = y_;
@@ -174,10 +175,10 @@ void CarLikeMobileRobot::findPs(double x, double y) {
     }
 }
 
-void CarLikeMobileRobot::calcCommand(double dt) {
+//ルンゲクッタ版
+void CarLikeMobileRobot::calcCommand() {
 
     double u1 = u_[0]; // 後輪間中点の速度
-    double u2 = u_[1]; // 前輪間中点におけるステアリング角速度
 
     double velocity    = u1; // 後輪間中点の速度
     double current_phi = phi_;
@@ -480,22 +481,7 @@ double CarLikeMobileRobot::f0(double x[RUNGE_DIM + 1]) {
 	return(1.0);
 }
 
-// double CarLikeMobileRobot::f1(double x[RUNGE_DIM + 1]) {
-// 	double u1 = u_[0];
-// 	return u1 * cos(th_);
-// }
-
-// double CarLikeMobileRobot::f2(double x[RUNGE_DIM + 1]) {
-// 	double u1 = u_[0];
-// 	return u1 * sin(th_);
-// }
-
-// double CarLikeMobileRobot::f3(double x[RUNGE_DIM + 1]) {
-// 	double u1 = u_[0];
-// 	return u1 * tan(phi_) / WHEEL_BASE;
-// }
-
-double CarLikeMobileRobot::f4(double x[RUNGE_DIM + 1]) {
+double CarLikeMobileRobot::f1(double x[RUNGE_DIM + 1]) {
 	double u2 = u_[1];
 	return u2;
 }
@@ -511,11 +497,6 @@ void CarLikeMobileRobot::publishWheelAngularVelocities(double omega_l, double om
     msg.data = {omega_l, omega_r};
     rear_wheel_pub_->publish(msg);
 }
-
-// std::vector<double> CarLikeMobileRobot::getOutputVariables(double t) {
-// 	std::array<double, 2> form_closure_score = evaluateFormClosureScore(true_vehicle1_pos_, true_vehicle2_pos_, true_vehicle3_pos_);
-//     return {t, x_, y_, th_, phi_, s_, d_, dd, th1_ - thetat_, thetap1d};
-// }
 
 
 int main(int argc, char **argv) {
@@ -544,12 +525,9 @@ int main(int argc, char **argv) {
 
         rclcpp::Time current_time = car_like_mobile_robot->now();
 
-        rclcpp::Duration dt_duration = current_time - pre_t;
-        double dt = dt_duration.seconds();  // Duration を double に変換
-
-        car_like_mobile_robot->calcControlInput(current_time); // 状態変数から制御入力を導出
+        car_like_mobile_robot->calcControlInput(); // 状態変数から制御入力を導出
         car_like_mobile_robot->Runge(current_time);            // 未来のphiを更新
-        car_like_mobile_robot->calcCommand(dt);                // 制御入力を後輪回転角速度とステアリング角度に変換
+        car_like_mobile_robot->calcCommand();                // 制御入力を後輪回転角速度とステアリング角度に変換
         car_like_mobile_robot->publishCommand();               // 後輪回転角速度とステアリング角度をpublsih
         
         pre_t = current_time;
