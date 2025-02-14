@@ -68,8 +68,6 @@ private:
     
     std::vector<BezierParameters> bezier_data_; // ベジェ曲線の計算結果を保持するメンバ変数
     
-    std::vector<std::vector<long long>> Com_; // nCk(Com_[n][k])の値を格納(Com_[N + 1][N + 1])
-
     rclcpp::Time pre_time_;
     double x_, y_, th_, phi_;
     double future_phi_;
@@ -91,15 +89,13 @@ private:
     void initializeSubscribers();
     void stateVariablesCallback(const std_msgs::msg::Float64MultiArray::SharedPtr msg);
 
-    void calc_com(); // 二項係数の計算を実行 & 配列に格納
-
     void calcBezierParameters(); // ベジェ曲線パラメータを計算する関数
 	void calcArcLength(std::vector<double>& s_values); // ベジェ曲線の経路長を計算
     double s_f0(double s_x[S_DIM + 1]);
     double s_f1(double s_x[S_DIM + 1]);
     typedef double (CarLikeMobileRobot::*s_FUNC)(double*);
     s_FUNC s_f[S_DIM+1] = {&CarLikeMobileRobot::s_f0, &CarLikeMobileRobot::s_f1};
-    long long nCk(int n, int k); // 二項係数の計算結果を取得する関数
+    long long nCk(int n, int k); // 二項係数の計算をする関数
     void calcRqDiff(double q, double Rq[][2]);
     void calcRsDiff(double Rq[][2], double Rs[][2]);
     void calcCurvature(double Rs[][2], double curv[3]);

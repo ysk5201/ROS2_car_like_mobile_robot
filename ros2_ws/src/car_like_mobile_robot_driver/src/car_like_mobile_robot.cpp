@@ -4,7 +4,6 @@
 CarLikeMobileRobot::CarLikeMobileRobot() : Node("car_like_mobile_robot"),
     isAtEndPoint(false),
     bezier_data_(),
-    Com_(N + 1, std::vector<long long>(N + 1, 0)),
     pre_time_(this->now()),
     x_(0.0), y_(0.0), th_(0.0), phi_(0.0),
     future_phi_(0.0),
@@ -16,7 +15,6 @@ CarLikeMobileRobot::CarLikeMobileRobot() : Node("car_like_mobile_robot"),
     initParams(); 
     initializeSubscribers();
     initializePublishers();
-    calc_com();
 }
 
 void CarLikeMobileRobot::initParams() {
@@ -73,17 +71,6 @@ void CarLikeMobileRobot::stateVariablesCallback(const std_msgs::msg::Float64Mult
 void CarLikeMobileRobot::initializePublishers() {
     front_steering_pub_  = this->create_publisher<std_msgs::msg::Float64MultiArray>("/front_steering_position_controller/commands", 1);
     rear_wheel_pub_      = this->create_publisher<std_msgs::msg::Float64MultiArray>("/rear_wheel_speed_controller/commands", 1);
-}
-
-void CarLikeMobileRobot::calc_com() {
-    const long long MOD = 1000000007;
-    Com_[0][0] = 1;
-    for (int i = 1; i < N + 1; ++i) {
-        Com_[i][0] = 1;
-        for (int j = 1; j < N + 1; ++j) {
-            Com_[i][j] = (Com_[i-1][j-1] + Com_[i-1][j]) % MOD;
-        }
-    }
 }
 
 void CarLikeMobileRobot::calcDesiredPathParams() {
@@ -351,50 +338,56 @@ double CarLikeMobileRobot::s_f1(double s_x[S_DIM + 1]) {
 }
 
 long long CarLikeMobileRobot::nCk(int n, int k) {
-    if (n < k) {
-        RCLCPP_ERROR(this->get_logger(), "Invalid inputs: n (%d) should be greater than or equal to k (%d)", n, k);
+    if (n < k || n < 0 || k < 0) {
+        RCLCPP_ERROR(this->get_logger(), "Invalid inputs: n (%d) should be >= k (%d) and both should be non-negative", n, k);
         return -1;
     }
-    if (n < 0 || k < 0) {
-        RCLCPP_ERROR(this->get_logger(), "Invalid inputs: n (%d) and k (%d) should be non-negative", n, k);
-        return -1;
+
+    const long long MOD = 1000000007; // 大きな数の計算を防ぐためのMOD
+    std::vector<std::vector<long long>> Com(n + 1, std::vector<long long>(k + 1, 0));
+
+    for (int i = 0; i <= n; ++i) {
+        Com[i][0] = 1;  // nC0 = 1
+        for (int j = 1; j <= std::min(i, k); ++j) {
+            Com[i][j] = (Com[i - 1][j - 1] + Com[i - 1][j]) % MOD;
+        }
     }
-    return Com_[n][k];
+
+    return Com[n][k];
 }
 
 // ベジェ曲線R(q)のqでの(0~4階)微分プログラム
 void CarLikeMobileRobot::calcRqDiff(double q, double Rq[][2]) {
-	// nCk計算プログラムの呼び出し
 	for (int i = 0; i < N + 1; i ++) {
+        long long nCi = nCk(N, i);
 		for (int j = 0; j < 5; j ++) {
-			double weight; // 重みづけの値を定義
 			// 0階微分
 			if (j == 0) {
-				weight = nCk(N, i)*std::pow(q, i)*std::pow(1-q, N-i);
+				double weight = nCi*std::pow(q, i)*std::pow(1-q, N-i);
                 Rq[j][0] += weight*B[i][0];
                 Rq[j][1] += weight*B[i][1];
 			}
 			// 1階微分
 			if (j == 1 && i > 0) {
-				weight = nCk(N, i)*i*std::pow(q, i-1)*std::pow(1-q, N-i);
+				double weight = nCi*i*std::pow(q, i-1)*std::pow(1-q, N-i);
                 Rq[j][0] += weight*(-B[i-1][0]+B[i][0]);
                 Rq[j][1] += weight*(-B[i-1][1]+B[i][1]);
 			}
 			// 2階微分
 			if (j == 2 && i > 1) {
-				weight = nCk(N, i)*i*(i-1)*std::pow(q, i-2)*std::pow(1-q, N-i);
+				double weight = nCi*i*(i-1)*std::pow(q, i-2)*std::pow(1-q, N-i);
                 Rq[j][0] += weight*(B[i-2][0]-2*B[i-1][0]+B[i][0]);
                 Rq[j][1] += weight*(B[i-2][1]-2*B[i-1][1]+B[i][1]);
 			}
 			// 3階微分
 			if (j == 3 && i > 2) {
-				weight = nCk(N, i)*i*(i-1)*(i-2)*std::pow(q, i-3)*std::pow(1-q, N-i);
+				double weight = nCi*i*(i-1)*(i-2)*std::pow(q, i-3)*std::pow(1-q, N-i);
                 Rq[j][0] += weight*(-B[i-3][0]+3*B[i-2][0]-3*B[i-1][0]+B[i][0]);
                 Rq[j][1] += weight*(-B[i-3][1]+3*B[i-2][1]-3*B[i-1][1]+B[i][1]);
 			}
 			// 4階微分
 			if (j == 4 && i > 3) {
-				weight = nCk(N, i)*i*(i-1)*(i-2)*(i-3)*std::pow(q, i-4)*std::pow(1-q, N-i);
+				double weight = nCi*i*(i-1)*(i-2)*(i-3)*std::pow(q, i-4)*std::pow(1-q, N-i);
                 Rq[j][0] += weight*(B[i-4][0]-4*B[i-3][0]+6*B[i-2][0]-4*B[i-1][0]+B[i][0]);
                 Rq[j][1] += weight*(B[i-4][1]-4*B[i-3][1]+6*B[i-2][1]-4*B[i-1][1]+B[i][1]);
 			}
