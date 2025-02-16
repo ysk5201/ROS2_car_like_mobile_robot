@@ -105,7 +105,7 @@
     - 以下コマンドでgazebo sim, 現在位置取得, 制御入力計算ノードを立ち上げ
     
         ```bash
-        ros2 launch car_like_mobile_robot_bringup bringup.launch.py
+        ros2 launch car_like_mobile_robot_bringup car_like_mobile_robot_sim.launch.py
         ```
    
     - Gazeboが起動し、ロボットが現れたら、**ターミナルで `s` を入力し、`Enter` を押すことでシミュレーション開始**
