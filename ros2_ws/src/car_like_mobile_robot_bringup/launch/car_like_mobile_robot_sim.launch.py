@@ -34,7 +34,8 @@ def generate_launch_description():
     car_like_mobile_robot_gazebo = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([os.path.join(
             car_like_mobile_robot_gazebo_share_dir, 'launch'), '/car_like_mobile_robot_gazebo.launch.py']),
-        launch_arguments={'world': world_file_name}.items()
+        # launch_arguments={'world': world_file_name}.items()
+        launch_arguments={'world': "empty.sdf"}.items()
     )
 
     state_variable_pub_node = Node(

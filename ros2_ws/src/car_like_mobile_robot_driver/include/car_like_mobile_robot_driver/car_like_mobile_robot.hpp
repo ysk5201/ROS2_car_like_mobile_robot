@@ -21,9 +21,9 @@ public:
     // Member functions
     void calcDesiredPathParams();
     // void getCurrentStateVariables();
-    void calcControlInput(rclcpp::Time t);
+    void calcControlInput();
     void Runge(rclcpp::Time t);
-    void calcCommand(double dt); // 関数名要検討
+    void calcCommand(); // 関数名要検討
     void publishCommand();
 
     // Member variables
@@ -31,7 +31,6 @@ public:
 
 private:
     // constants
-    static constexpr int N = 3;                    // 3次ベジェ曲線
     static constexpr int S_DIM = 1;                // 経路長の数値積分の次元数
     static constexpr int Q_DIV_NUM = 100000;       // ベジェ曲線q[0,1]の分割数
     static constexpr int STATE_VARIABLE_DIM = 4;   // 車両型移動ロボットの状態変数
@@ -43,8 +42,8 @@ private:
     static constexpr double WHEEL_RADIUS = 0.3;    // 車輪半径(m) (URDFと統一)
 
     // 制御点を定義
-    std::vector<std::array<double,2>> B;
-
+    std::vector<std::array<double,2>> B;    //制御点
+    int N; // ベジェ曲線の次元数
     
     // フィードバックゲイン
     static constexpr double P11	= -3.0;
@@ -68,8 +67,6 @@ private:
     
     std::vector<BezierParameters> bezier_data_; // ベジェ曲線の計算結果を保持するメンバ変数
     
-    std::vector<std::vector<long long>> Com_; // nCk(Com_[n][k])の値を格納(Com_[N + 1][N + 1])
-
     rclcpp::Time pre_time_;
     double x_, y_, th_, phi_;
     double future_phi_;
@@ -91,15 +88,13 @@ private:
     void initializeSubscribers();
     void stateVariablesCallback(const std_msgs::msg::Float64MultiArray::SharedPtr msg);
 
-    void calc_com(); // 二項係数の計算を実行 & 配列に格納
-
     void calcBezierParameters(); // ベジェ曲線パラメータを計算する関数
 	void calcArcLength(std::vector<double>& s_values); // ベジェ曲線の経路長を計算
     double s_f0(double s_x[S_DIM + 1]);
     double s_f1(double s_x[S_DIM + 1]);
     typedef double (CarLikeMobileRobot::*s_FUNC)(double*);
     s_FUNC s_f[S_DIM+1] = {&CarLikeMobileRobot::s_f0, &CarLikeMobileRobot::s_f1};
-    long long nCk(int n, int k); // 二項係数の計算結果を取得する関数
+    long long nCk(int n, int k); // 二項係数の計算をする関数
     void calcRqDiff(double q, double Rq[][2]);
     void calcRsDiff(double Rq[][2], double Rs[][2]);
     void calcCurvature(double Rs[][2], double curv[3]);
@@ -107,16 +102,9 @@ private:
     void findPs(double x, double y);
 
     double f0(double x[RUNGE_DIM + 1]);  // t
-    // double f1(double x[RUNGE_DIM + 1]);  // x
-    // double f2(double x[RUNGE_DIM + 1]);  // y
-    // double f3(double x[RUNGE_DIM + 1]);  // th
-    double f4(double x[RUNGE_DIM + 1]);  // phi
+    double f1(double x[RUNGE_DIM + 1]);  // phi
     typedef double (CarLikeMobileRobot::*FUNC)(double*);
-    FUNC f[RUNGE_DIM + 1] = {&CarLikeMobileRobot::f0,
-                            // &CarLikeMobileRobot::f1,
-                            // &CarLikeMobileRobot::f2,
-                            // &CarLikeMobileRobot::f3,
-                            &CarLikeMobileRobot::f4,};
+    FUNC f[RUNGE_DIM + 1] = {&CarLikeMobileRobot::f0, &CarLikeMobileRobot::f1};
     
     void initializePublishers();
     void publishSteeringAngles(double phi_l, double phi_r);
