@@ -34,3 +34,5 @@ RUN bash -c "source /opt/ros/jazzy/setup.bash && colcon build || echo 'No packag
 
 # 環境変数の設定
 CMD ["bash", "-c", "source /opt/ros/jazzy/setup.bash && source install/setup.bash && bash"]
+
+RUN ln -sf /usr/share/zoneinfo/Asia/Tokyo /etc/localtime
