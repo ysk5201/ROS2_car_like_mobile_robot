@@ -54,9 +54,16 @@ def generate_launch_description():
         prefix='xterm -e', #別ターミナルを起動
         parameters = [{'control_points': serialized_control_points}],
     )
+    
+    file_logger_node = Node(
+        package='file_logger',
+        executable='car_logger',
+        name='car_logger',
+    )
 
     return LaunchDescription([
         car_like_mobile_robot_gazebo,
         state_variable_pub_node,
-        driver_node   
+        driver_node,
+        file_logger_node
     ])
