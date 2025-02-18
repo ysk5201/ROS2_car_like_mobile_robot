@@ -21,20 +21,24 @@ DataLogger::DataLogger()
   //ファイル名を作成
   std::string file_name = log_dir + "debug_log_" + time_str + ".csv";
 
+  //log_filesディレクトリがあるかの確認
+  if (!std::filesystem::exists(log_dir)) {
+    if (!std::filesystem::create_directories(log_dir)) {
+      std::cerr << "ディレクトリの作成に失敗しました: " << log_dir << std::endl;
+    }      
+  }
+
   // ファイルを新規作成（上書き）モードでオープン
   data_file_.open(file_name, std::ios::out | std::ios::trunc);
   if (!data_file_.is_open()) {
     RCLCPP_ERROR(this->get_logger(), "Failed to open data_log.txt");
   }
 
-
   // debug_info トピックのサブスクライバー作成
   debug_info_sub_ = this->create_subscription<std_msgs::msg::Float64MultiArray>(
     "/debug_info", 10,
     std::bind(&DataLogger::debugInfoCallback, this, std::placeholders::_1)
-  );
-
-  
+  );  
 }
 
 DataLogger::~DataLogger()
