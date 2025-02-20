@@ -22,20 +22,24 @@ def generate_launch_description():
     # YAMLファイルを読み込み、辞書型に変換
     with open(common_param_file_path, 'r') as file:
         params = yaml.safe_load(file)
-
-    control_points = params.get('ros__parameters', {}).get('control_points', [])
+    control_points = params.get('ros__parameters', {}).get('control_points', [])    #制御点
     
+    
+    world_file_name = 'bezier_box.sdf'  # ワールドファイル名
+    #worldsディレクトリが存在しない場合は作成
+    if not os.path.exists(os.path.join(car_like_mobile_robot_gazebo_share_dir, 'worlds')):
+        os.makedirs(os.path.join(car_like_mobile_robot_gazebo_share_dir, 'worlds'))
+    world_file_path = os.path.join(car_like_mobile_robot_gazebo_share_dir, 'worlds', world_file_name)
 
     #ワールドファイルの作成
-    world_file_name = 'bezier_box.sdf'
-    world_file_path = os.path.join(car_like_mobile_robot_gazebo_share_dir, 'worlds', world_file_name)
-    generate_bezier_box.create_world(control_points,filename=world_file_path)
+    generate_bezier_box.create_world(control_points,filename=world_file_path)   #ワールドファイルを生成
+
+
 
     car_like_mobile_robot_gazebo = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([os.path.join(
             car_like_mobile_robot_gazebo_share_dir, 'launch'), '/car_like_mobile_robot_gazebo.launch.py']),
-        # launch_arguments={'world': world_file_name}.items()
-        launch_arguments={'world': "empty.sdf"}.items()
+        launch_arguments={'world': world_file_name}.items()
     )
 
     state_variable_pub_node = Node(

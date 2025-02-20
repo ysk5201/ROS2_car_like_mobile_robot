@@ -50,11 +50,6 @@ def generate_launch_description():
         ]
     )
 
-
-   
-    # print(os.path.join(car_like_mobile_robot_bringup_path, 'worlds'), ':' +
-    #         str(Path(car_like_mobile_robot_description_path).parent.resolve()))
-    # print(f"GZ_SIM_RESOURCE_PATH: {os.getenv('GZ_SIM_RESOURCE_PATH')}")
     # # xacro to urdf
     xacro_file = os.path.join(car_like_mobile_robot_description_path,
                               'urdf',
